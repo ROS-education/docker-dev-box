@@ -43,14 +43,14 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh 
     rm /tmp/miniconda.sh && \
     $CONDA_DIR/bin/conda clean -a -y
 
-# Make conda command available to all users
-ENV PATH=$CONDA_DIR/bin:$PATH
-RUN echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> /etc/profile && \
-    echo "conda activate" >> /etc/profile && \
-    echo "export PATH=$CONDA_DIR/bin:$PATH" >> /etc/profile
+# Make conda command available to root only (not in regular user PATH)
+# RUN echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> /etc/profile && \
+#     echo "conda activate" >> /etc/profile && \
+#     echo "export PATH=$CONDA_DIR/bin:$PATH" >> /etc/profile
 
 # Give sudo access to conda command for dev user
-RUN echo "dev ALL=(ALL) NOPASSWD: $CONDA_DIR/bin/conda *" >> /etc/sudoers
+RUN echo "dev ALL=(ALL) NOPASSWD: $CONDA_DIR/bin/conda *" >> /etc/sudoers && \
+    echo "Defaults env_keep += \"PATH\"" >> /etc/sudoers
 
 # Create dev_env environment with Python tools
 # Note: C/C++ tools (gcc, g++, make) are already installed via build-essential
@@ -76,10 +76,12 @@ RUN chmod 777 /media
 RUN echo "ClientAliveInterval 30" >> /etc/ssh/sshd_config
 RUN echo "ClientAliveCountMax 120" >> /etc/ssh/sshd_config
 
-# Configure dev user's bash profile to activate conda environment
-RUN echo 'export PATH=/opt/miniconda3/bin:$PATH' >> /home/dev/.bashrc && \
-    echo '. /opt/miniconda3/etc/profile.d/conda.sh' >> /home/dev/.bashrc && \
-    echo 'conda activate dev_env' >> /home/dev/.bashrc
+# Configure dev user's bash profile (conda requires sudo)
+RUN echo '. /opt/miniconda3/etc/profile.d/conda.sh' >> /home/dev/.bashrc && \
+    echo 'alias conda="sudo /opt/miniconda3/bin/conda"' >> /home/dev/.bashrc && \
+    echo 'alias sconda="/usr/local/bin/conda-wrapper.sh"' >> /home/dev/.bashrc && \
+    echo 'export CONDA_EXE="/opt/miniconda3/bin/conda"' >> /home/dev/.bashrc && \
+    echo 'sudo /opt/miniconda3/bin/conda activate dev_env' >> /home/dev/.bashrc
 
 # Add USB access rules
 COPY 99-usb-permissions.rules /etc/udev/rules.d/
@@ -106,6 +108,34 @@ else\n\
 fi' > /usr/local/bin/mount-usb.sh
 
 RUN chmod +x /usr/local/bin/mount-usb.sh
+
+# Add SSH key management script
+COPY manage-ssh-keys.sh /usr/local/bin/manage-ssh-keys.sh
+RUN chmod +x /usr/local/bin/manage-ssh-keys.sh
+
+# Add conda wrapper script for easier usage
+RUN echo '#!/bin/bash\n\
+# Conda wrapper script to handle sudo requirements\n\
+CONDA_BIN="/opt/miniconda3/bin/conda"\n\
+\n\
+if [ "$#" -eq 0 ]; then\n\
+    echo "Usage: conda <command> [args...]"\n\
+    echo "Available commands: list, env, install, create, activate, etc."\n\
+    exit 1\n\
+fi\n\
+\n\
+# Handle conda activate specially since it needs to be sourced\n\
+if [ "$1" = "activate" ]; then\n\
+    if [ "$#" -gt 1 ]; then\n\
+        source /opt/miniconda3/bin/activate "$2"\n\
+    else\n\
+        source /opt/miniconda3/bin/activate\n\
+    fi\n\
+else\n\
+    # For all other conda commands, use sudo\n\
+    sudo "$CONDA_BIN" "$@"\n\
+fi' > /usr/local/bin/conda-wrapper.sh && \
+    chmod +x /usr/local/bin/conda-wrapper.sh
 
 WORKDIR /home/dev/workspace
 
