@@ -1,0 +1,25 @@
+{
+    "name": "DEV-BOX",
+    "dockerComposeFile": "../docker-compose.yaml", // Reference the external docker-compose.yaml
+    "service": "dev-box", // Update to match the service name in docker-compose.yaml
+    "workspaceFolder": "/workspace", // Match the workspace folder in the container
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "Postman.postman-for-vscode",
+                "ritwickdey.LiveServer",
+                "esbenp.prettier-vscode",
+                "dbaeumer.vscode-eslint",
+                "EditorConfig.EditorConfig",
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/opt/miniconda/bin/python"
+            }
+        }
+    },
+    
+    "remoteUser": "ubuntu" // Ensure this matches the user in the Dockerfile
+}

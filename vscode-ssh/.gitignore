@@ -1,0 +1,7 @@
+# Ignore docker-compose generated files
+.env
+docker-compose.override.yml
+
+# Ignore any temporary files
+*.tmp
+*.log
