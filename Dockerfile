@@ -110,7 +110,7 @@ RUN conda create -n dev_env -c conda-forge \
     conda clean -afy
 
 # Activate the 'dev_env', install Firebase CLI globally using npm, and install ngrok  
-RUN bash -c "source activate dev_env && npm install -g firebase-tools"
+RUN bash -c "source /opt/miniconda/etc/profile.d/conda.sh && conda activate dev_env && npm install -g firebase-tools"
 
 # Install ngrok using bash shell to handle case statement properly
 RUN /bin/bash -c 'set -e; \
@@ -160,13 +160,14 @@ RUN usermod -aG docker ubuntu
 
 # Initialize Conda for the ubuntu user's bash shell and set default env
 USER ubuntu
-RUN echo '# Source .bashrc for SSH sessions' > /home/ubuntu/.bash_profile && \
+RUN /opt/miniconda/bin/conda init bash && \
+    echo '# Source .bashrc for SSH sessions' > /home/ubuntu/.bash_profile && \
     echo 'if [ -f ~/.bashrc ]; then' >> /home/ubuntu/.bash_profile && \
     echo '    source ~/.bashrc' >> /home/ubuntu/.bash_profile && \
     echo 'fi' >> /home/ubuntu/.bash_profile && \
-    # Configure conda for all sessions in .bashrc
-    echo 'export PATH=/opt/miniconda/bin:$PATH' >> /home/ubuntu/.bashrc && \
-    echo 'source /opt/miniconda/etc/profile.d/conda.sh' >> /home/ubuntu/.bashrc && \
+    # Ensure conda activation in .bashrc (conda init should handle this, but being explicit)
+    echo '' >> /home/ubuntu/.bashrc && \
+    echo '# Activate dev_env conda environment by default' >> /home/ubuntu/.bashrc && \
     echo 'conda activate dev_env' >> /home/ubuntu/.bashrc && \
     # Add helpful aliases for development
     echo 'alias ll="ls -la"' >> /home/ubuntu/.bashrc && \
@@ -253,7 +254,7 @@ RUN mkdir -p /opt/code-server/certs && \
       -subj "/C=US/ST=California/L=San Francisco/O=IT/CN=localhost" && \
     chown -R ubuntu:ubuntu /opt/code-server/certs
 
-    # Switch to ubuntu user for subsequent steps
+# Switch to ubuntu user for subsequent steps
 USER ubuntu
 
 # Install VS Code extensions
