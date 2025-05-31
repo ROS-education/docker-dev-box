@@ -76,18 +76,52 @@ fi
 
 # Set execute permissions for scripts
 echo -e "\n${BLUE}Setting execute permissions on scripts...${NC}"
-ssh -p "$SSH_PORT" "$REMOTE_USER@$REMOTE_HOST" "chmod +x $DEST_DIR/run-vscode-ssh.sh $DEST_DIR/vscode-ssh/vscode-ssh-setup.sh"
+ssh -p "$SSH_PORT" "$REMOTE_USER@$REMOTE_HOST" "cd $DEST_DIR && chmod +x *.sh && chmod +x vscode-ssh/*.sh"
 if [ $? -ne 0 ]; then
     echo -e "${YELLOW}Warning: Could not set execute permissions.${NC}"
 fi
 
+# Ask which environment to set up
+echo
+echo -e "${YELLOW}Which development environment would you like to set up?${NC}"
+echo "1. Full Dev-Box (Code-Server + SSH + Conda with C++/Python)"
+echo "2. Lightweight VS Code SSH (Minimal resources, SSH only)"
+echo "3. Transfer only (no setup)"
+read -p "Choose option (1/2/3): " ENV_CHOICE
+
+case $ENV_CHOICE in
+    1)
+        echo -e "\n${BLUE}Setting up Full Dev-Box environment...${NC}"
+        ssh -p "$SSH_PORT" "$REMOTE_USER@$REMOTE_HOST" "cd $DEST_DIR && ./setup-remote-pc.sh"
+        ;;
+    2)
+        echo -e "\n${BLUE}Setting up VS Code SSH environment...${NC}"
+        ssh -p "$SSH_PORT" "$REMOTE_USER@$REMOTE_HOST" "cd $DEST_DIR && ./run-vscode-ssh.sh"
+        ;;
+    3)
+        echo -e "\n${GREEN}Files transferred successfully. No automatic setup performed.${NC}"
+        ;;
+    *)
+        echo -e "\n${YELLOW}Invalid choice. Skipping automatic setup.${NC}"
+        ;;
+esac
+
 # Confirm completion
 echo
 echo -e "${GREEN}Transfer complete!${NC}"
-echo -e "\nTo start the VS Code SSH container on the remote host, run:"
-echo -e "${BLUE}  ssh -p $SSH_PORT $REMOTE_USER@$REMOTE_HOST${NC}"
-echo -e "${BLUE}  cd $DEST_DIR${NC}"
-echo -e "${BLUE}  ./run-vscode-ssh.sh${NC}"
+
+if [ "$ENV_CHOICE" = "3" ] || [ "$ENV_CHOICE" != "1" ] && [ "$ENV_CHOICE" != "2" ]; then
+    echo -e "\nTo manually set up environments on the remote host:"
+    echo -e "${BLUE}For Full Dev-Box:${NC}"
+    echo -e "  ssh -p $SSH_PORT $REMOTE_USER@$REMOTE_HOST"
+    echo -e "  cd $DEST_DIR"
+    echo -e "  ./setup-remote-pc.sh"
+    echo
+    echo -e "${BLUE}For VS Code SSH:${NC}"
+    echo -e "  ssh -p $SSH_PORT $REMOTE_USER@$REMOTE_HOST"
+    echo -e "  cd $DEST_DIR"
+    echo -e "  ./run-vscode-ssh.sh"
+fi
 echo
 
 # Optional: offer to connect to the remote machine

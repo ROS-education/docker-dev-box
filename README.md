@@ -143,6 +143,50 @@ This project includes a `docker-compose.yaml` file for easier management of the 
 
 *Note: AI code generation tools assisted in the development of this project.*
 
+## 🌐 Remote PC Usage
+
+This development environment can be deployed and accessed on a remote PC/server, allowing you to code from anywhere with just a web browser or VS Code Remote-SSH.
+
+### Quick Setup on Remote PC
+
+1. **Transfer files to remote PC:**
+   ```bash
+   # Automated transfer with setup options
+   ./transfer-to-remote.sh
+   
+   # OR manual transfer
+   git clone <repository-url>
+   cd docker-dev-box
+   ```
+
+2. **Run the automated setup (if not done during transfer):**
+   ```bash
+   ./setup-remote-pc.sh
+   ```
+
+3. **Access your environment:**
+   - **Web Browser:** `https://remote-pc-ip:8443`
+   - **VS Code Remote-SSH:** Configure connection to `remote-pc-ip:2222`
+   - **Direct SSH:** `ssh -p 2222 ubuntu@remote-pc-ip`
+
+### Features for Remote Development
+
+- **SSH Server:** Built-in SSH server for VS Code Remote-SSH connections
+- **Web-based Code-Server:** Access VS Code through any web browser
+- **Conda Environment:** Automatically activated for all sessions
+- **Port Forwarding:** Easy access to development servers
+- **Persistent Storage:** Your work persists across container restarts
+
+### Security & Production
+
+For production deployments:
+- Change default passwords
+- Set up SSH key authentication
+- Configure firewall rules
+- Use reverse proxy with SSL
+
+📖 **For detailed remote setup instructions, see [REMOTE-SETUP.md](REMOTE-SETUP.md)**
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit pull requests or open issues.
