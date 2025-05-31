@@ -27,7 +27,7 @@ This interactive script will:
 - Guide you through the transfer process
 - Set proper permissions
 - Offer to automatically set up the environment
-- Support both full dev-box and lightweight VS Code SSH setups
+- Support full dev-box setup with all development tools
 
 **Option B: Using Git**
 ```bash
@@ -167,7 +167,7 @@ Set up SSH keys for passwordless access:
 
 ```bash
 # On remote PC, run the setup script
-./setup-remote-ssh.sh setup-keys
+./setup-remote-pc.sh ssh
 
 # Or manually copy your public key
 cat ~/.ssh/id_rsa.pub | docker exec -i dev_box tee -a /home/ubuntu/.ssh/authorized_keys

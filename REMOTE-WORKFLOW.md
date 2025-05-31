@@ -12,9 +12,8 @@ This script will:
 1. ✅ Interactively ask for remote connection details
 2. ✅ Transfer all project files via SCP
 3. ✅ Set proper permissions on all scripts
-4. ✅ Offer to automatically set up either:
-   - **Full Dev-Box** (Code-Server + SSH + Full development environment)
-   - **Lightweight VS Code SSH** (Minimal resources, SSH only)
+4. ✅ Offer to automatically set up the full development environment:
+   - **Full Dev-Box** (Code-Server + SSH + Complete development stack)
 5. ✅ Optionally connect you to the remote machine
 
 ### Option 2: Manual Transfer + Automated Setup
@@ -28,12 +27,10 @@ cd docker-dev-box
 ./setup-remote-pc.sh
 ```
 
-### Option 3: Lightweight SSH Only
+### Option 2: Transfer Only
 ```bash
-# For resource-constrained devices
+# Transfer files without automatic setup
 ./transfer-to-remote.sh  # Choose option 2
-# OR
-./run-vscode-ssh.sh      # On remote PC
 ```
 
 ## 🎯 What Each Script Does
@@ -45,7 +42,7 @@ cd docker-dev-box
   - Supports custom SSH ports
   - Sets executable permissions
   - Offers automatic environment setup
-  - Choice between full dev-box or lightweight SSH
+  - Full dev-box deployment with complete development stack
 - **Usage:** `./transfer-to-remote.sh`
 
 ### `setup-remote-pc.sh`
@@ -60,30 +57,21 @@ cd docker-dev-box
 - **Usage:** `./setup-remote-pc.sh [command]`
 - **Commands:** `setup`, `check`, `firewall`, `build`, `ssh`, `info`, `stop`, `restart`, `logs`, `help`
 
-### `run-vscode-ssh.sh`
-- **Purpose:** Start lightweight VS Code SSH container
-- **Features:**
-  - Minimal resource usage
-  - Full hardware access (USB, etc.)
-  - SSH-only access (no web interface)
-  - Suitable for Raspberry Pi and similar devices
-- **Usage:** `./run-vscode-ssh.sh`
+## 📊 Environment Features
 
-## 📊 Environment Comparison
-
-| Feature | Full Dev-Box | Lightweight SSH |
-|---------|-------------|-----------------|
-| **Resource Usage** | High | Minimal |
-| **Access Methods** | Web + SSH + Remote-SSH | Remote-SSH only |
-| **Code-Server** | ✅ HTTPS web interface | ❌ |
-| **SSH Server** | ✅ Port 2222 | ✅ Port 22 |
-| **Conda Environment** | ✅ Python + Node + C++ | ✅ Python + C++ |
-| **Hardware Access** | Limited | ✅ Full USB access |
-| **Best For** | Remote development, any device | Resource-constrained devices |
+| Feature | Full Dev-Box |
+|---------|-------------|
+| **Resource Usage** | Moderate to High |
+| **Access Methods** | Web + SSH + Remote-SSH |
+| **Code-Server** | ✅ HTTPS web interface |
+| **SSH Server** | ✅ Port 2222 |
+| **Conda Environment** | ✅ Python + Node + C++ |
+| **Hardware Access** | ✅ Full USB access |
+| **Best For** | Remote development, versatile usage |
 
 ## 🔐 Security Features
 
-Both environments include:
+The environment includes:
 - SSH key authentication support
 - Configurable firewall rules
 - Non-root user execution
@@ -94,8 +82,6 @@ Both environments include:
 - **[REMOTE-SETUP.md](REMOTE-SETUP.md)** - Detailed remote setup guide
 - **[ACCESS-METHODS.md](ACCESS-METHODS.md)** - All access methods comparison
 - **[SSH-SETUP.md](SSH-SETUP.md)** - SSH configuration and troubleshooting
-- **[vscode-ssh/README.md](vscode-ssh/README.md)** - Lightweight container details
-
 ## 🎉 Complete Workflow Example
 
 ```bash

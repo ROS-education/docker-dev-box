@@ -139,26 +139,43 @@ build_and_start() {
 setup_ssh_keys() {
     print_status "Setting up SSH keys..."
     
-    if [ -f "./setup-remote-ssh.sh" ]; then
-        ./setup-remote-ssh.sh setup-keys
-        print_status "SSH keys configured"
+    # Check if user has SSH key
+    if [ ! -f ~/.ssh/id_rsa.pub ] && [ ! -f ~/.ssh/id_ed25519.pub ]; then
+        print_status "Generating SSH key pair..."
+        ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
+        print_status "SSH key generated: ~/.ssh/id_ed25519"
+    fi
+    
+    # Find the public key to use
+    local pubkey=""
+    if [ -f ~/.ssh/id_ed25519.pub ]; then
+        pubkey=~/.ssh/id_ed25519.pub
+    elif [ -f ~/.ssh/id_rsa.pub ]; then
+        pubkey=~/.ssh/id_rsa.pub
     else
-        print_warning "setup-remote-ssh.sh not found. Setting up manually..."
+        print_error "No SSH public key found"
+        return 1
+    fi
+    
+    # Copy key to container
+    if docker ps | grep -q $CONTAINER_NAME; then
+        print_status "Copying SSH key to container..."
+        print_status "Using public key: $pubkey"
         
-        # Check if user has SSH key
-        if [ ! -f ~/.ssh/id_rsa.pub ]; then
-            print_status "Generating SSH key pair..."
-            ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
-        fi
+        # Create .ssh directory and set permissions
+        docker exec $CONTAINER_NAME mkdir -p /home/ubuntu/.ssh
+        docker exec $CONTAINER_NAME chmod 700 /home/ubuntu/.ssh
         
-        # Copy key to container
-        if docker ps | grep -q $CONTAINER_NAME; then
-            print_status "Copying SSH key to container..."
-            cat ~/.ssh/id_rsa.pub | docker exec -i $CONTAINER_NAME tee -a /home/ubuntu/.ssh/authorized_keys
-            docker exec $CONTAINER_NAME chown ubuntu:ubuntu /home/ubuntu/.ssh/authorized_keys
-            docker exec $CONTAINER_NAME chmod 600 /home/ubuntu/.ssh/authorized_keys
-            print_status "SSH key copied successfully"
-        fi
+        # Copy the public key
+        cat "$pubkey" | docker exec -i $CONTAINER_NAME tee -a /home/ubuntu/.ssh/authorized_keys > /dev/null
+        
+        # Set proper permissions
+        docker exec $CONTAINER_NAME chmod 600 /home/ubuntu/.ssh/authorized_keys
+        docker exec $CONTAINER_NAME chown -R ubuntu:ubuntu /home/ubuntu/.ssh
+        
+        print_status "SSH key copied successfully"
+    else
+        print_warning "Container not running, skipping SSH key setup"
     fi
 }
 

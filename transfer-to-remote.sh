@@ -76,7 +76,7 @@ fi
 
 # Set execute permissions for scripts
 echo -e "\n${BLUE}Setting execute permissions on scripts...${NC}"
-ssh -p "$SSH_PORT" "$REMOTE_USER@$REMOTE_HOST" "cd $DEST_DIR && chmod +x *.sh && chmod +x vscode-ssh/*.sh"
+ssh -p "$SSH_PORT" "$REMOTE_USER@$REMOTE_HOST" "cd $DEST_DIR && chmod +x *.sh"
 if [ $? -ne 0 ]; then
     echo -e "${YELLOW}Warning: Could not set execute permissions.${NC}"
 fi
@@ -85,9 +85,8 @@ fi
 echo
 echo -e "${YELLOW}Which development environment would you like to set up?${NC}"
 echo "1. Full Dev-Box (Code-Server + SSH + Conda with C++/Python)"
-echo "2. Lightweight VS Code SSH (Minimal resources, SSH only)"
-echo "3. Transfer only (no setup)"
-read -p "Choose option (1/2/3): " ENV_CHOICE
+echo "2. Transfer only (no setup)"
+read -p "Choose option (1/2): " ENV_CHOICE
 
 case $ENV_CHOICE in
     1)
@@ -95,10 +94,6 @@ case $ENV_CHOICE in
         ssh -p "$SSH_PORT" "$REMOTE_USER@$REMOTE_HOST" "cd $DEST_DIR && ./setup-remote-pc.sh"
         ;;
     2)
-        echo -e "\n${BLUE}Setting up VS Code SSH environment...${NC}"
-        ssh -p "$SSH_PORT" "$REMOTE_USER@$REMOTE_HOST" "cd $DEST_DIR && ./run-vscode-ssh.sh"
-        ;;
-    3)
         echo -e "\n${GREEN}Files transferred successfully. No automatic setup performed.${NC}"
         ;;
     *)
@@ -120,7 +115,7 @@ if [ "$ENV_CHOICE" = "3" ] || [ "$ENV_CHOICE" != "1" ] && [ "$ENV_CHOICE" != "2"
     echo -e "${BLUE}For VS Code SSH:${NC}"
     echo -e "  ssh -p $SSH_PORT $REMOTE_USER@$REMOTE_HOST"
     echo -e "  cd $DEST_DIR"
-    echo -e "  ./run-vscode-ssh.sh"
+    echo -e "  ./setup-remote-pc.sh"
 fi
 echo
 

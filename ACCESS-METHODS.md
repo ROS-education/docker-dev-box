@@ -76,15 +76,6 @@ ssh -p 2222 ubuntu@remote-pc-ip
 - **Pros:** Direct access, good for command-line work
 - **Cons:** No GUI, requires proper firewall configuration
 
-## 📱 Lightweight Alternative (Resource-Constrained Devices)
-
-### VS Code SSH Container (Raspberry Pi, etc.)
-```bash
-./run-vscode-ssh.sh
-```
-- **Access:** VS Code Remote-SSH only (no web interface)
-- **Pros:** Minimal resource usage, full hardware access including USB
-- **Cons:** Requires VS Code with Remote-SSH extension
 
 ## 🔐 Authentication Methods
 
@@ -119,8 +110,8 @@ docker-compose up -d --build
 
 ### SSH Key Setup (Any method)
 ```bash
-# Automated
-./setup-remote-ssh.sh setup-keys
+# Automated (includes full environment setup)
+./setup-remote-pc.sh ssh
 
 # Manual
 ssh-copy-id -p 2222 ubuntu@target-host

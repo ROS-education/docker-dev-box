@@ -2,22 +2,7 @@
 
 A Dockerized development environment based on Ubuntu Noble, featuring `code-server` (VS Code in the browser) managed by Supervisor. It comes pre-configured with Miniconda, essential C++/Python development tools, useful VS Code extensions (including an **AI Code Assistant**), and is ready for remote development.
 
-## Alternative: Lightweight VS Code SSH Container
 
-For resource-constrained devices like Raspberry Pi, this repository also includes a lightweight VS Code SSH setup. This allows you to connect to your device using VS Code's Remote-SSH extension without the overhead of a full code-server installation.
-
-### Features:
-- SSH remote development for VS Code
-- **Full hardware access, including USB devices and drives**
-- Automatic USB mounting support
-- Minimal resource usage compared to code-server
-
-To use the lightweight option, run:
-```bash
-./run-vscode-ssh.sh
-```
-
-For more details, see the [VS Code SSH Container README](./vscode-ssh/README.md).
 
 ## ✨ Features
 

@@ -50,17 +50,23 @@ docker exec dev_box supervisorctl status
 
 2. **Set up SSH keys:**
    ```bash
-   ./setup-remote-ssh.sh setup-keys
+   ./setup-remote-pc.sh ssh
    ```
 
 3. **Test the connection:**
    ```bash
-   ./setup-remote-ssh.sh test-connection
+   ssh -p 2222 ubuntu@localhost 'echo "SSH connection successful!"'
    ```
 
 4. **Get VS Code configuration:**
    ```bash
-   ./setup-remote-ssh.sh show-config
+   # Manual configuration for VS Code Remote-SSH
+   # Add to ~/.ssh/config:
+   Host docker-dev-box
+       HostName localhost
+       Port 2222
+       User ubuntu
+       ForwardAgent yes
    ```
 
 ## Connection Details
