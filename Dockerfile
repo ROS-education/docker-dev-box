@@ -1,7 +1,6 @@
-# Use the base image without forcing the platform. Docker will select
-# the appropriate architecture based on the build context or --platform flag.
-# Pinning to a specific date tag for reproducibility
-FROM ubuntu:noble-20250404
+# Use Alpine Linux as base image for smaller footprint
+# Pinning to a specific version for reproducibility
+FROM alpine:3.20
 
 # Define ARG for host docker group GID.
 # IMPORTANT: Set this at build time (--build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3))
@@ -13,11 +12,19 @@ ARG HOST_DOCKER_GID=988
 # TARGETARCH will be 'amd64' or 'arm64' depending on the build target
 ARG TARGETARCH
 
-# Install base dependencies, including supervisor, clangd, wget, curl, unzip, and openssh-server
-# These packages are generally available for both amd64 and arm64
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Base requirement
-    ca-certificates \ 
+# Install glibc compatibility layer first (required for many tools like Miniconda)
+RUN apk add --no-cache wget ca-certificates && \
+    wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub && \
+    wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r1/glibc-2.35-r1.apk && \
+    wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r1/glibc-bin-2.35-r1.apk && \
+    apk add --no-cache --force-overwrite glibc-2.35-r1.apk glibc-bin-2.35-r1.apk && \
+    rm glibc-*.apk
+
+# Install base dependencies
+RUN apk add --no-cache \
+    bash \
+    bash-completion \
+    ca-certificates \
     curl \
     gnupg \
     sudo \
@@ -25,38 +32,71 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
     net-tools \
     supervisor \
-    clangd \
-    wget \ 
+    clang \
+    clang-dev \
+    llvm \
+    wget \
     unzip \
-    openjdk-17-jre-headless \
+    openjdk17-jre-headless \
     openssh-server \
     rsync \
- && rm -rf /var/lib/apt/lists/*
+    shadow \
+    tzdata \
+    libusb-dev \
+    eudev-dev \
+    usbutils
 
-# Add Docker's official GPG key & repository for CLI tools
-RUN install -m 0755 -d /etc/apt/keyrings && \
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && \
-    chmod a+r /etc/apt/keyrings/docker.asc && \
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-      tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    # Install Docker CLI tools in the same layer
-    apt-get update && apt-get install -y --no-install-recommends \
-    docker-ce-cli \
-    docker-compose-plugin \
-    docker-buildx-plugin \
- && rm -rf /var/lib/apt/lists/*
+# Install Docker CLI from static binaries (Alpine doesn't have official Docker packages)
+RUN \
+    # Determine architecture for Docker CLI download
+    if [ -n "${TARGETARCH:-}" ]; then \
+        case ${TARGETARCH} in \
+            amd64) DOCKER_ARCH="x86_64" ;; \
+            arm64) DOCKER_ARCH="aarch64" ;; \
+            *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
+        esac; \
+    else \
+        RUNTIME_ARCH=$(uname -m); \
+        case ${RUNTIME_ARCH} in \
+            x86_64) DOCKER_ARCH="x86_64" ;; \
+            aarch64) DOCKER_ARCH="aarch64" ;; \
+            *) echo "Unsupported runtime architecture: ${RUNTIME_ARCH}"; exit 1 ;; \
+        esac; \
+    fi && \
+    echo "Using Docker architecture: ${DOCKER_ARCH}" && \
+    # Download and install Docker CLI
+    curl -fsSL "https://download.docker.com/linux/static/stable/${DOCKER_ARCH}/docker-24.0.7.tgz" -o docker.tgz && \
+    tar xzf docker.tgz --strip 1 -C /usr/local/bin docker/docker && \
+    rm docker.tgz && \
+    # Install Docker Compose plugin
+    mkdir -p /usr/local/lib/docker/cli-plugins && \
+    curl -fsSL "https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-${DOCKER_ARCH}" -o /usr/local/lib/docker/cli-plugins/docker-compose && \
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # Install Google Cloud CLI
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    apt-transport-https \
-    gnupg \
-    lsb-release && \
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-    apt-get update && apt-get install -y --no-install-recommends google-cloud-sdk && \
-    rm -rf /var/lib/apt/lists/*
+RUN \
+    # Determine architecture for gcloud CLI
+    if [ -n "${TARGETARCH:-}" ]; then \
+        case ${TARGETARCH} in \
+            amd64) GCLOUD_ARCH="x86_64" ;; \
+            arm64) GCLOUD_ARCH="arm" ;; \
+            *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
+        esac; \
+    else \
+        RUNTIME_ARCH=$(uname -m); \
+        case ${RUNTIME_ARCH} in \
+            x86_64) GCLOUD_ARCH="x86_64" ;; \
+            aarch64) GCLOUD_ARCH="arm" ;; \
+            *) echo "Unsupported runtime architecture: ${RUNTIME_ARCH}"; exit 1 ;; \
+        esac; \
+    fi && \
+    echo "Using gcloud architecture: ${GCLOUD_ARCH}" && \
+    curl -fsSL "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-455.0.0-linux-${GCLOUD_ARCH}.tar.gz" -o gcloud.tar.gz && \
+    tar xzf gcloud.tar.gz -C /opt && \
+    rm gcloud.tar.gz && \
+    /opt/google-cloud-sdk/install.sh --quiet --path-update=false && \
+    ln -s /opt/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud && \
+    ln -s /opt/google-cloud-sdk/bin/gsutil /usr/local/bin/gsutil
 
 # Set environment variable for Miniconda installation path
 ENV MINICONDA_PATH=/opt/miniconda
@@ -135,12 +175,10 @@ RUN /bin/bash -c 'set -e; \
 RUN ln -s /opt/miniconda/envs/dev_env/bin/node /usr/local/bin/node && \
     ln -s /opt/miniconda/envs/dev_env/bin/npm /usr/local/bin/npm
 
-# Configure existing ubuntu user (architecture independent)
+# Configure ubuntu user (Alpine uses adduser instead of useradd)
 ARG USERNAME=ubuntu
-RUN useradd -m -s /bin/bash ${USERNAME} || true && \
-    usermod -u 1000 ${USERNAME} && \
-    groupmod -g 1000 ${USERNAME} && \
-    usermod --shell /bin/bash ${USERNAME} && \
+RUN adduser -D -s /bin/bash -u 1000 ${USERNAME} && \
+    echo "${USERNAME}:ubuntu" | chpasswd && \
     mkdir -p /home/${USERNAME}/.n8n && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.n8n && \
     mkdir -p /home/${USERNAME}/.conda && \
@@ -149,14 +187,12 @@ RUN useradd -m -s /bin/bash ${USERNAME} || true && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config && \
     mkdir -p /workspace && \
     chown -R ${USERNAME}:${USERNAME} /workspace && \
-    ln -sfn /workspace /home/${USERNAME}/workspace && \
-    chown -R ubuntu:ubuntu /home/ubuntu
+    ln -sfn /workspace /home/${USERNAME}/workspace
 
 # Create docker group with specific GID from build argument to match HOST docker group GID.
 # Then add ubuntu user to this group to allow access to the mounted docker socket.
-# (architecture independent)
-RUN groupadd --gid ${HOST_DOCKER_GID:-988} docker || groupmod -g ${HOST_DOCKER_GID:-988} docker || true
-RUN usermod -aG docker ubuntu
+RUN addgroup -g ${HOST_DOCKER_GID:-988} docker || true && \
+    adduser ubuntu docker
 
 # Initialize Conda for the ubuntu user's bash shell and set default env
 USER ubuntu
@@ -174,6 +210,15 @@ RUN /opt/miniconda/bin/conda init bash && \
     echo 'alias la="ls -A"' >> /home/ubuntu/.bashrc && \
     echo 'alias l="ls -CF"' >> /home/ubuntu/.bashrc
 
+# Create SSH directory for ubuntu user
+RUN mkdir -p /home/ubuntu/.ssh && \
+    chmod 700 /home/ubuntu/.ssh && \
+    # Create SSH environment file for conda activation
+    echo 'PATH=/opt/miniconda/bin:/opt/miniconda/envs/dev_env/bin:/home/ubuntu/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > /home/ubuntu/.ssh/environment && \
+    echo 'CONDA_DEFAULT_ENV=dev_env' >> /home/ubuntu/.ssh/environment && \
+    echo 'CONDA_PREFIX=/opt/miniconda/envs/dev_env' >> /home/ubuntu/.ssh/environment && \
+    chmod 600 /home/ubuntu/.ssh/environment
+
 # Switch back to root for subsequent steps
 USER root
 
@@ -182,15 +227,9 @@ RUN echo 'ubuntu ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ubuntu-nopasswd && \
     chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
 
 # Install USB utilities and add ubuntu user to dialout and plugdev groups for USB access
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    usbutils \
-    libusb-1.0-0-dev \
-    libudev-dev \
-    && rm -rf /var/lib/apt/lists/* && \
-    # Add ubuntu user to groups that typically have USB device access
-    usermod -aG dialout ubuntu && \
-    usermod -aG plugdev ubuntu && \
-    usermod -aG tty ubuntu
+RUN adduser ubuntu dialout && \
+    adduser ubuntu plugdev || addgroup plugdev && adduser ubuntu plugdev && \
+    adduser ubuntu tty || true
 
 # Create udev rules for USB device access
 RUN mkdir -p /etc/udev/rules.d && \
@@ -203,6 +242,8 @@ RUN mkdir -p /etc/udev/rules.d && \
 
 # Configure SSH server for Remote-SSH compatibility
 RUN mkdir -p /var/run/sshd && \
+    # Generate host keys
+    ssh-keygen -A && \
     # Configure SSH server settings for VS Code Remote-SSH
     echo 'Port 22' >> /etc/ssh/sshd_config && \
     echo 'PermitRootLogin no' >> /etc/ssh/sshd_config && \
@@ -220,23 +261,7 @@ RUN mkdir -p /var/run/sshd && \
     echo 'ClientAliveCountMax 10' >> /etc/ssh/sshd_config && \
     # Allow environment variables for conda activation
     echo 'AcceptEnv CONDA_DEFAULT_ENV CONDA_PREFIX PATH' >> /etc/ssh/sshd_config && \
-    echo 'PermitUserEnvironment yes' >> /etc/ssh/sshd_config && \
-    # Fix SSH login issues
-    sed -i 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' /etc/pam.d/sshd
-
-# Set a default password for ubuntu user (change this in production!)
-RUN echo 'ubuntu:ubuntu' | chpasswd
-
-# Create SSH directory for ubuntu user
-RUN mkdir -p /home/ubuntu/.ssh && \
-    chown ubuntu:ubuntu /home/ubuntu/.ssh && \
-    chmod 700 /home/ubuntu/.ssh && \
-    # Create SSH environment file for conda activation
-    echo 'PATH=/opt/miniconda/bin:/opt/miniconda/envs/dev_env/bin:/home/ubuntu/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > /home/ubuntu/.ssh/environment && \
-    echo 'CONDA_DEFAULT_ENV=dev_env' >> /home/ubuntu/.ssh/environment && \
-    echo 'CONDA_PREFIX=/opt/miniconda/envs/dev_env' >> /home/ubuntu/.ssh/environment && \
-    chown ubuntu:ubuntu /home/ubuntu/.ssh/environment && \
-    chmod 600 /home/ubuntu/.ssh/environment
+    echo 'PermitUserEnvironment yes' >> /etc/ssh/sshd_config
 
 # Define code-server version
 ARG CODER_VERSION=4.100.2
@@ -317,16 +342,13 @@ EXPOSE 8443 22
 #    docker run --privileged -v /dev:/dev -v /var/run/docker.sock:/var/run/docker.sock \
 #               -p 8443:8443 -p 2222:22 your-image-name
 
-# Install bash-completion and configure bash history
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash-completion && \
-    echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc && \
+# Configure bash completion and history
+RUN echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc && \
     echo "HISTFILE=/home/ubuntu/.bash_history" >> /etc/bash.bashrc && \
     echo "HISTSIZE=10000" >> /etc/bash.bashrc && \
     echo "HISTFILESIZE=20000" >> /etc/bash.bashrc && \
     echo "PROMPT_COMMAND='history -a'" >> /etc/bash.bashrc && \
-    echo "shopt -s histappend" >> /etc/bash.bashrc && \
-    rm -rf /var/lib/apt/lists/*
+    echo "shopt -s histappend" >> /etc/bash.bashrc
 
 # Run supervisord using the main configuration file
 # Supervisor should now only manage code-server (and any other non-docker services)
