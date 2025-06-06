@@ -264,9 +264,9 @@ USER ubuntu
 RUN code-server --install-extension llvm-vs-code-extensions.vscode-clangd \
  && code-server --install-extension ms-python.python \
  && code-server --install-extension ms-vscode.cmake-tools \
- && code-server --install-extension google.geminicodeassist \
- && code-server --install-extension DanielSanMedium.dscodegpt \
- && code-server --install-extension rjmacarthy.twinny \
+#  && code-server --install-extension google.geminicodeassist \
+#  && code-server --install-extension DanielSanMedium.dscodegpt \
+#  && code-server --install-extension rjmacarthy.twinny \
  && code-server --install-extension ms-azuretools.vscode-docker 
  
 # Set Workdir as ubuntu user
