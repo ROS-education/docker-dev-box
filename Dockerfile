@@ -119,7 +119,8 @@ RUN apk add --no-cache \
 
 # Create Python virtual environment for development
 RUN python3 -m venv /opt/python-dev-env \
-    && /opt/python-dev-env/bin/pip install --upgrade pip setuptools wheel
+    && /opt/python-dev-env/bin/pip install --upgrade pip setuptools wheel \
+    && sed -i 's/PS1="("'"'"'(python-dev-env) '"'"'") ${PS1:-}"/PS1="(python-dev-env) ${PS1:-}"/' /opt/python-dev-env/bin/activate
 
 # Install development tools in the Python virtual environment
 RUN /opt/python-dev-env/bin/pip install \
@@ -223,18 +224,18 @@ RUN mkdir -p /etc/udev/rules.d && \
     # Allow access to common development USB devices
     echo 'ATTRS{idVendor}=="*", ATTRS{idProduct}=="*", MODE="0664", GROUP="plugdev"' >> /etc/udev/rules.d/99-usb-permissions.rules
 
-# Configure SSH server for Remote-SSH compatibility
+# Configure SSH server for Remote-SSH compatibility (Alpine Linux compatible)
 RUN mkdir -p /var/run/sshd && \
     # Generate host keys
     ssh-keygen -A && \
-    # Configure SSH server settings for VS Code Remote-SSH
+    # Configure SSH server settings for VS Code Remote-SSH (Alpine compatible)
     echo 'Port 22' >> /etc/ssh/sshd_config && \
     echo 'PermitRootLogin no' >> /etc/ssh/sshd_config && \
     echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config && \
     echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config && \
     echo 'AuthorizedKeysFile .ssh/authorized_keys' >> /etc/ssh/sshd_config && \
     echo 'ChallengeResponseAuthentication no' >> /etc/ssh/sshd_config && \
-    echo 'UsePAM yes' >> /etc/ssh/sshd_config && \
+    # Note: UsePAM not supported on Alpine Linux, using default behavior
     echo 'X11Forwarding yes' >> /etc/ssh/sshd_config && \
     echo 'PrintMotd no' >> /etc/ssh/sshd_config && \
     echo 'AcceptEnv LANG LC_*' >> /etc/ssh/sshd_config && \

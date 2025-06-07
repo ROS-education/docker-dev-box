@@ -4,6 +4,12 @@
 
 echo "=== Fixing Double Virtual Environment Prompt ==="
 
+# Fix the Python virtual environment activate script PS1 issue
+if [ -f /opt/python-dev-env/bin/activate ]; then
+    echo "Fixing virtual environment activate script..."
+    sed -i 's/PS1="("'"'"'(python-dev-env) '"'"'") ${PS1:-}"/PS1="(python-dev-env) ${PS1:-}"/' /opt/python-dev-env/bin/activate
+fi
+
 # Fix the .bashrc to use Python virtual environment activation
 cat > ~/.bashrc << 'EOF'
 # Activate Python development environment by default (only if not already activated)

@@ -46,8 +46,13 @@ services:
     #   - /dev/ttyUSB0:/dev/ttyUSB0 # Serial USB devices
     #   - /dev/ttyACM0:/dev/ttyACM0 # Arduino/microcontroller devices
     ports:
-     - "2222:22"  # SSH access (code-server disabled for Alpine)
      - "2222:22"    # SSH Server for Remote-SSH
+    healthcheck:
+      test: ["CMD", "ssh", "-o", "ConnectTimeout=5", "-o", "BatchMode=yes", "developer@localhost", "echo", "healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
     # user: "1000:1000" # Keep removed - Container starts as root for supervisord
 
