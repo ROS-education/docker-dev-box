@@ -65,7 +65,7 @@ cd docker-dev-box
 | **Access Methods** | Web + SSH + Remote-SSH |
 | **Code-Server** | ✅ HTTPS web interface |
 | **SSH Server** | ✅ Port 2222 |
-| **Conda Environment** | ✅ Python + Node + C++ |
+| **Python Virtual Environment** | ✅ Python + Node + C++ |
 | **Hardware Access** | ✅ Full USB access |
 | **Best For** | Remote development, versatile usage |
 

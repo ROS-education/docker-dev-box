@@ -11,7 +11,7 @@ A comprehensive Alpine Linux-based Docker development environment with Python, N
 
 ### 🐍 **Python Development Environment**
 *   **Native Python:** Alpine-native Python 3.x with virtual environment support
-*   **Virtual Environment:** Pre-configured development environment at `/opt/miniconda/envs/dev_env`
+*   **Virtual Environment:** Pre-configured development environment at `/opt/python-dev-env`
 *   **Package Management:** pip with all essential development packages
 *   **Auto-activation:** Python environment automatically activated in all user sessions
 
@@ -120,7 +120,7 @@ docker exec dev_box su - developer -c "python --version"
 
 ### Python Stack
 *   **Python Version:** 3.x (Alpine native)
-*   **Virtual Environment:** `/opt/miniconda/envs/dev_env`
+*   **Virtual Environment:** `/opt/python-dev-env`
 *   **Package Manager:** pip (latest)
 *   **Pre-installed Packages:** Development essentials
 
@@ -157,7 +157,6 @@ usbutils, libusb-dev, eudev-dev
 ### Volume Mounts
 *   **Codespaces:** Main workspace directory (`/workspace`)
 *   **config:** User configuration (`/home/developer/.config`)
-*   **conda:** Python environment data (`/home/developer/.conda`)
 *   **Docker Socket:** Docker-in-Docker access (`/var/run/docker.sock`)
 *   **USB Devices:** Hardware access (`/dev` in privileged mode)
 ## 💻 Development Workflows
@@ -165,7 +164,7 @@ usbutils, libusb-dev, eudev-dev
 ### Python Development
 ```bash
 # Activate environment (auto-activated in new shells)
-source /opt/miniconda/envs/dev_env/bin/activate
+source /opt/python-dev-env/bin/activate
 
 # Install packages
 pip install numpy pandas matplotlib jupyter
@@ -281,7 +280,7 @@ Add extensions to `.devcontainer/devcontainer.json`:
 ./validate-devcontainer.sh
 
 # Specific component tests
-./test-conda-setup.sh
+./test-python-env-setup.sh
 ./test-usb-access.sh
 ```
 

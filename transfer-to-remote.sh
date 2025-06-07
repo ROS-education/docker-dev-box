@@ -84,7 +84,7 @@ fi
 # Ask which environment to set up
 echo
 echo -e "${YELLOW}Which development environment would you like to set up?${NC}"
-echo "1. Full Dev-Box (Code-Server + SSH + Conda with C++/Python)"
+echo "1. Full Dev-Box (SSH + Python Virtual Environment with C++/Python/Node.js)"
 echo "2. Transfer only (no setup)"
 read -p "Choose option (1/2): " ENV_CHOICE
 

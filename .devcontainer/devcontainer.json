@@ -19,7 +19,7 @@
                 "ms-vscode.cmake-tools"
             ],
             "settings": {
-                "python.defaultInterpreterPath": "/opt/miniconda/envs/dev_env/bin/python",
+                "python.defaultInterpreterPath": "/opt/python-dev-env/bin/python",
                 "python.terminal.activateEnvironment": true,
                 "python.terminal.activateEnvInCurrentTerminal": true,
                 "terminal.integrated.defaultProfile.linux": "bash",
@@ -33,7 +33,7 @@
         }
     },
     
-    "postCreateCommand": "source /opt/miniconda/envs/dev_env/bin/activate && echo 'Alpine DEV-BOX environment ready!'",
+    "postCreateCommand": "source /opt/python-dev-env/bin/activate && echo 'Alpine DEV-BOX environment ready!'",
     
     "remoteUser": "developer"
 }

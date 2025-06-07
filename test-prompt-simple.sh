@@ -25,12 +25,12 @@ sleep 5
 
 echo
 echo "=== Testing SSH Environment File ==="
-echo "SSH environment PATH (should NOT include /opt/miniconda/envs/dev_env/bin):"
+echo "SSH environment PATH (should NOT include /opt/python-dev-env/bin):"
 docker exec dev-box-prompt-test cat /home/developer/.ssh/environment
 
 echo
 echo "=== Testing Bashrc Activation ==="
-echo "Bashrc virtual environment setup:"
+echo "Bashrc Python virtual environment setup:"
 docker exec dev-box-prompt-test grep -A3 -B1 "VIRTUAL_ENV" /home/developer/.bashrc
 
 echo

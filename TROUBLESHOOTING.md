@@ -13,7 +13,7 @@ This guide helps you diagnose and fix common issues with the Docker development 
 ./test-environment.sh
 
 # Check specific components
-./test-conda-setup.sh
+./test-python-env-setup.sh
 ./test-usb-access.sh
 ```
 
@@ -134,13 +134,13 @@ ssh -i ~/.ssh/devbox_key -p 2222 developer@localhost
 #### Check Virtual Environment
 ```bash
 # Verify environment exists
-docker exec dev_box ls -la /opt/miniconda/envs/
+docker exec dev_box ls -la /opt/python-dev-env/
 
 # Check Python installation
 docker exec dev_box which python3
 
 # Test environment activation
-docker exec dev_box su - developer -c "source /opt/miniconda/envs/dev_env/bin/activate && python --version"
+docker exec dev_box su - developer -c "source /opt/python-dev-env/bin/activate && python --version"
 ```
 
 #### Reinstall Python Environment
@@ -149,15 +149,15 @@ docker exec dev_box su - developer -c "source /opt/miniconda/envs/dev_env/bin/ac
 docker exec -it dev_box su - developer
 
 # Create new environment
-python3 -m venv /opt/miniconda/envs/dev_env
-source /opt/miniconda/envs/dev_env/bin/activate
+python3 -m venv /opt/python-dev-env
+source /opt/python-dev-env/bin/activate
 pip install --upgrade pip
 ```
 
 ### Package Installation Issues
 ```bash
 # Permission issues
-sudo chown -R developer:developer /opt/miniconda/
+sudo chown -R developer:developer /opt/python-dev-env/
 
 # Network issues
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org package_name
@@ -494,7 +494,7 @@ docker exec dev_box su - developer -c "
 cat > ~/.bashrc << 'EOF'
 # Activate dev_env Python environment by default (only if not already activated)
 if [[ -z \"\$VIRTUAL_ENV\" ]]; then
-    source /opt/miniconda/envs/dev_env/bin/activate
+    source /opt/python-dev-env/bin/activate
 fi
 
 # Helpful aliases
@@ -506,7 +506,7 @@ EOF
 
 # Edit SSH environment file
 docker exec dev_box su - developer -c "
-echo 'PATH=/opt/miniconda/bin:/opt/miniconda/envs/dev_env/bin:/home/developer/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > ~/.ssh/environment
+echo 'PATH=/home/developer/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > ~/.ssh/environment
 chmod 600 ~/.ssh/environment
 "
 

@@ -1,16 +1,16 @@
 #!/bin/bash
-# Test script to verify the virtual environment prompt fix
+# Test script to verify the Python virtual environment prompt fix
 
-echo "=== Testing Virtual Environment Prompt Fix ==="
+echo "=== Testing Python Virtual Environment Prompt Fix ==="
 echo
 
 # Build the container with the fix
 echo "Building updated container..."
-docker-compose build --no-cache
+docker compose build --no-cache
 
 # Start the container
 echo "Starting container..."
-docker-compose up -d
+docker compose up -d
 
 # Wait for container to be ready
 echo "Waiting for container to initialize..."

@@ -44,7 +44,7 @@ docker-compose logs -f
 - **USB Support**: Full USB device access with proper group memberships
 
 ### Python Environment
-- Virtual environment at `/opt/miniconda/envs/dev_env`
+- Virtual environment at `/opt/python-dev-env`
 - Automatically activated in user sessions
 - Pip package manager included
 - Development packages pre-installed
@@ -91,7 +91,6 @@ TZ=Asia/Bangkok
 ### Volume Mounts
 - `Codespaces:/workspace` - Main workspace directory
 - `config:/home/developer/.config` - User configuration
-- `conda:/home/developer/.conda` - Python environment data
 - `/var/run/docker.sock` - Docker-in-Docker access
 - `/dev:/dev` - USB device access (when using --privileged)
 
@@ -106,7 +105,7 @@ TZ=Asia/Bangkok
 ### Environment Activation
 ```bash
 # Automatically activated in new sessions
-source /opt/miniconda/envs/dev_env/bin/activate
+source /opt/python-dev-env/bin/activate
 
 # Install packages
 pip install numpy pandas matplotlib jupyter
@@ -221,7 +220,7 @@ ssh -p 2222 developer@localhost
 ./test-environment.sh
 
 # Specific tests
-./test-conda-setup.sh
+./test-python-env-setup.sh
 ./test-usb-access.sh
 ```
 

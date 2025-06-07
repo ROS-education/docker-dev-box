@@ -12,7 +12,7 @@
 - ✅ Supervisor process management for SSH services
 
 #### 2. **Development Environment** ✓
-- ✅ Python 3.x with virtual environment at `/opt/miniconda/envs/dev_env`
+- ✅ Python 3.x with virtual environment at `/opt/python-dev-env`
 - ✅ Node.js 20+ with npm 10+ and Firebase CLI
 - ✅ Comprehensive development tools (git, cmake, gdb, clang, etc.)
 - ✅ Google Cloud CLI and Firebase CLI integration
@@ -34,9 +34,10 @@
 #### 5. **Testing & Validation** ✓
 - ✅ Comprehensive test suite (`test-environment.sh`)
 - ✅ DevContainer validation script (`validate-devcontainer.sh`)
-- ✅ Component-specific tests (conda, USB, connection speed)
+- ✅ Component-specific tests (Python env, USB, connection speed)
 - ✅ SSH key management utilities
 - ✅ **Fixed double virtual environment prompt issue** 🔧
+- ✅ **Completed transition from conda to Python virtual environments** 🔧
 
 #### 6. **Documentation** ✓
 - ✅ Complete README.md with Alpine-based instructions
@@ -95,7 +96,6 @@ Ports:
 Volume Mounts:
 - Codespaces: /workspace (main workspace)
 - config: /home/developer/.config
-- conda: /home/developer/.conda
 - Docker socket: /var/run/docker.sock
 - USB devices: /dev (privileged mode)
 ```
@@ -142,7 +142,7 @@ docker-compose logs
 #### Python Development
 ```bash
 # Auto-activated virtual environment
-source /opt/miniconda/envs/dev_env/bin/activate  # (automatic)
+source /opt/python-dev-env/bin/activate  # (automatic)
 pip install packages
 python scripts.py
 jupyter notebook --ip=0.0.0.0 --port=8888

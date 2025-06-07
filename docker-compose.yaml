@@ -31,7 +31,6 @@ services:
       # - EXTERNAL_FRONTEND_HOOKS_URLS=
     volumes:
       - config:/home/developer/.config
-      - conda:/home/developer/.conda
       # - n8n_data:/home/developer/.n8n
       - Codespaces:/workspace
       # - projects:/home/developer/projects
@@ -73,7 +72,6 @@ services:
 
 volumes:
   config:
-  conda:
   Codespaces:
     external: true
   # n8n_data:

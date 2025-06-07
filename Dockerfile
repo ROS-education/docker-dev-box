@@ -96,43 +96,43 @@ RUN \
     ln -s /opt/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud && \
     ln -s /opt/google-cloud-sdk/bin/gsutil /usr/local/bin/gsutil
 
-# Set environment variable for Python virtual environment installation path
-ENV MINICONDA_PATH=/opt/miniconda
-# Set environment variable for updated PATH (Python venv and ~/.local/bin added)
-ENV PATH=$MINICONDA_PATH/bin:$MINICONDA_PATH/envs/dev_env/bin:/home/${USERNAME}/.local/bin:$PATH
+# Set environment variable for Python installation path (using Alpine's system Python)
+ENV PYTHON_PATH=/usr/bin
+# Set environment variable for updated PATH
+ENV PATH=/home/${USERNAME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Ensure sudo access to Python environment
-RUN echo 'Defaults secure_path="/opt/miniconda/bin:/opt/miniconda/envs/dev_env/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >> /etc/sudoers && \
-    ln -sf $MINICONDA_PATH/envs/dev_env/bin/python /usr/local/bin/python3
+RUN echo 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >> /etc/sudoers
 
-# Use Alpine's native Python instead of conda for better compatibility
+# Install Python 3.12 and development tools from Alpine packages
 RUN apk add --no-cache \
-    python3 \
+    python3=~3.12 \
     python3-dev \
     py3-pip \
     py3-setuptools \
     py3-wheel \
     py3-virtualenv \
-    nodejs \
-    npm && \
-    # Create conda-like directory structure using Python venv
-    python3 -m venv $MINICONDA_PATH && \
-    $MINICONDA_PATH/bin/pip install --upgrade pip setuptools wheel && \
-    # Create environment structure
-    mkdir -p $MINICONDA_PATH/envs && \
-    # Create dev_env as a Python virtual environment
-    python3 -m venv $MINICONDA_PATH/envs/dev_env && \
-    $MINICONDA_PATH/envs/dev_env/bin/pip install --upgrade pip setuptools wheel && \
-    # Create simple conda wrapper script for basic commands
-    echo '#!/bin/bash' > $MINICONDA_PATH/bin/conda && \
-    echo 'echo "Using Alpine Python instead of conda: $@"' >> $MINICONDA_PATH/bin/conda && \
-    chmod +x $MINICONDA_PATH/bin/conda
+    build-base \
+    linux-headers \
+    && ln -sf python3 /usr/bin/python \
+    && ln -sf pip3 /usr/bin/pip
 
-# Install development tools in the dev_env Python environment
-# Using Alpine packages and pip instead of conda
-RUN $MINICONDA_PATH/envs/dev_env/bin/pip install \
-    cmake \
-    && echo "Development environment ready with Python, Node.js, and development tools"
+# Create Python virtual environment for development
+RUN python3 -m venv /opt/python-dev-env \
+    && /opt/python-dev-env/bin/pip install --upgrade pip setuptools wheel
+
+# Install development tools in the Python virtual environment
+RUN /opt/python-dev-env/bin/pip install \
+    jupyter \
+    ipython \
+    numpy \
+    pandas \
+    matplotlib \
+    requests \
+    && echo "Development environment ready with Python 3.12 from Alpine packages"
+
+# Install Node.js and npm from Alpine (keep system-level for global tools)
+RUN apk add --no-cache nodejs npm
 
 # Install Firebase CLI globally using npm from Alpine packages
 # Downgrade npm to a compatible version with Node.js 20.15.1
@@ -167,8 +167,6 @@ RUN adduser -D -s /bin/bash -u 1000 ${USERNAME} && \
     echo "${USERNAME}:developer" | chpasswd && \
     mkdir -p /home/${USERNAME}/.n8n && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.n8n && \
-    mkdir -p /home/${USERNAME}/.conda && \
-    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.conda && \
     mkdir -p /home/${USERNAME}/.config && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config && \
     mkdir -p /workspace && \
@@ -186,11 +184,11 @@ RUN echo '# Source .bashrc for SSH sessions' > /home/${USERNAME}/.bash_profile &
     echo 'if [ -f ~/.bashrc ]; then' >> /home/${USERNAME}/.bash_profile && \
     echo '    source ~/.bashrc' >> /home/${USERNAME}/.bash_profile && \
     echo 'fi' >> /home/${USERNAME}/.bash_profile && \
-    # Setup Python environment activation in .bashrc
+    # Setup Python virtual environment activation in .bashrc
     echo '' >> /home/${USERNAME}/.bashrc && \
-    echo '# Activate dev_env Python environment by default (only if not already activated)' >> /home/${USERNAME}/.bashrc && \
+    echo '# Activate Python development environment by default' >> /home/${USERNAME}/.bashrc && \
     echo 'if [[ -z "$VIRTUAL_ENV" ]]; then' >> /home/${USERNAME}/.bashrc && \
-    echo '    source /opt/miniconda/envs/dev_env/bin/activate' >> /home/${USERNAME}/.bashrc && \
+    echo '    source /opt/python-dev-env/bin/activate' >> /home/${USERNAME}/.bashrc && \
     echo 'fi' >> /home/${USERNAME}/.bashrc && \
     # Add helpful aliases for development
     echo 'alias ll="ls -la"' >> /home/${USERNAME}/.bashrc && \
@@ -200,8 +198,8 @@ RUN echo '# Source .bashrc for SSH sessions' > /home/${USERNAME}/.bash_profile &
 # Create SSH directory for developer user
 RUN mkdir -p /home/${USERNAME}/.ssh && \
     chmod 700 /home/${USERNAME}/.ssh && \
-    # Create SSH environment file for basic PATH only (virtual environment activated via .bashrc)
-    echo "PATH=/opt/miniconda/bin:/home/${USERNAME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > /home/${USERNAME}/.ssh/environment && \
+    # Create SSH environment file for basic PATH (virtual environment activated via .bashrc)
+    echo "PATH=/home/${USERNAME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > /home/${USERNAME}/.ssh/environment && \
     chmod 600 /home/${USERNAME}/.ssh/environment
 
 # Switch back to root for subsequent steps
@@ -269,7 +267,7 @@ USER root
 COPY supervisor /opt/supervisor
 RUN chown -R ${USERNAME}:${USERNAME} /opt/supervisor
 
-VOLUME ["/workspace", "/home/${USERNAME}/.config", "/home/${USERNAME}/.conda","/home/${USERNAME}/.n8n"]
+VOLUME ["/workspace", "/home/${USERNAME}/.config", "/home/${USERNAME}/.n8n"]
 EXPOSE 22
 
 # --- IMPORTANT NOTES FOR SHARING HOST DOCKER DAEMON AND USB DEVICES ---
