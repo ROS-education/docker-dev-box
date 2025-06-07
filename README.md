@@ -1,213 +1,424 @@
-# dev-box
+# Docker Development Environment (DEV-BOX)
 
-A Dockerized development environment based on Ubuntu Noble, featuring `code-server` (VS Code in the browser) managed by Supervisor. It comes pre-configured with Miniconda, essential C++/Python development tools, useful VS Code extensions (including an **AI Code Assistant**), and is ready for remote development.
-
-
+A comprehensive Alpine Linux-based Docker development environment with Python, Node.js, development tools, VS Code integration, SSH access, and Docker-in-Docker capabilities. Optimized for lightweight performance and security.
 
 ## ✨ Features
 
-*   **Web-Based VS Code:** Access a full VS Code experience via your browser using `code-server`.
-*   **AI Code Assistant:** Includes **Google Gemini** (via the Cloud Code extension) to assist with code generation, explanation, debugging, and more, right within the editor.
-*   **Ubuntu Noble Base:** Built on the latest Ubuntu LTS release (at the time of writing).
-*   **Miniconda:** Includes Miniconda for robust Python package and environment management.
-*   **Pre-configured Conda Environment (`dev_env`):**
-    *   Python 3.12
-    *   Node.js 22
-    *   CMake
-    *   C++ Compiler (g++)
-    *   Make
-    *   GDB (GNU Debugger)
-*   **System Tools:**
-    *   `git` for version control.
-    *   `clangd` for C/C++ language intelligence (installed via apt).
-*   **Process Management:** Uses `supervisor` to manage the `code-server` process reliably.
-*   **Non-root User:** Runs `code-server` and development tasks as a standard user (`ubuntu`, UID/GID 1000) with passwordless `sudo` access.
-*   **Pre-installed VS Code Extensions:**
-    *   `googlecloudtools.cloudcode`: Google Cloud integration and **Gemini AI assistant**.
-    *   `llvm-vs-code-extensions.vscode-clangd`: Clangd integration.
-    *   `ms-python.python`: Python language support.
-    *   `ms-vscode.cmake-tools`: CMake project support.
-*   **Persistent Storage:** Uses Docker volumes to persist `code-server` configuration and user project files between container runs.
-*   **Secure Access (Optional):** Generates self-signed SSL certificates (though enabling HTTPS depends on the `code-server` startup command within the supervisor configuration).
+### 🏔️ **Alpine Linux Foundation**
+*   **Lightweight Base:** Built on Alpine Linux 3.20 for minimal footprint and enhanced security
+*   **musl libc:** Native Alpine packages for better compatibility and performance
+*   **Package Security:** Regular security updates from Alpine's hardened package repository
 
-## ⚙️ Prerequisites
+### 🐍 **Python Development Environment**
+*   **Native Python:** Alpine-native Python 3.x with virtual environment support
+*   **Virtual Environment:** Pre-configured development environment at `/opt/miniconda/envs/dev_env`
+*   **Package Management:** pip with all essential development packages
+*   **Auto-activation:** Python environment automatically activated in all user sessions
 
-*   Docker Engine or Docker Desktop installed.
-*   Git (optional, for cloning this repository).
-*   Docker Compose (or the `docker compose` plugin).
+### 🌐 **Node.js Development Stack**
+*   **Node.js 20+:** Latest LTS version from Alpine packages
+*   **npm 10+:** Modern package manager with global tool support
+*   **Firebase CLI:** Pre-installed for Firebase development
+*   **Development Tools:** Full npm ecosystem access
 
-## ▶️ Usage (Running with Docker Compose)
+### 🛠️ **Development Tools Suite**
+*   **Build Tools:** cmake, make, gcc, clang, gdb
+*   **Version Control:** git with full functionality
+*   **Cloud Tools:** Google Cloud CLI, Firebase CLI
+*   **System Tools:** curl, wget, rsync, openssh
+*   **USB Support:** Full USB device access with proper permissions
 
-This project includes a `docker-compose.yaml` file for easier management of the container and its volumes.
+### 🐳 **Docker-in-Docker Integration**
+*   **Host Docker Access:** Shares host Docker daemon via socket mounting
+*   **Container Management:** Full docker and docker-compose functionality
+*   **Security:** Proper group permissions for safe Docker access
+*   **Multi-platform:** Supports both AMD64 and ARM64 architectures
 
-1.  **Prerequisites:**
-    *   Ensure you have `docker` and `docker-compose` (or the `docker compose` plugin) installed.
-    *   Make sure the `Dockerfile`, the `supervisor` directory, and the `docker-compose.yaml` file are in the same directory.
+### 🔐 **Multiple Access Methods**
+*   **VS Code DevContainer:** Native VS Code integration with automatic setup
+*   **Remote-SSH:** VS Code Remote-SSH support with configured SSH server
+*   **Direct Access:** Direct container shell access for command-line work
+*   **Secure SSH:** Password and key-based authentication support
 
-2.  **Build and Start the Container:**
-    Open your terminal in the directory containing the `docker-compose.yaml` file and run:
+### 🔌 **USB Device Support**
+*   **Full USB Access:** Complete USB device access in privileged mode
+*   **Device Groups:** User added to dialout, plugdev, and tty groups
+*   **udev Rules:** Proper device permissions for development hardware
+*   **Serial Devices:** Support for Arduino, microcontrollers, and serial interfaces
 
-    ```bash
-    docker-compose up -d --build
-    ```
+### 👤 **User Management**
+*   **Developer User:** Non-root user (UID 1000) with sudo access
+*   **Secure Permissions:** Proper file ownership and group memberships
+*   **SSH Configuration:** Pre-configured SSH server with key support
+*   **Environment Setup:** Customized bash environment with aliases and completion
 
-    *   `docker-compose up`: Creates and starts the container(s) defined in the file.
-    *   `-d`: Runs the container(s) in detached mode (in the background).
-    *   `--build`: Forces Docker Compose to build the image using the `Dockerfile` before starting the service. You can omit `--build` on subsequent runs if the `Dockerfile` hasn't changed.
+## 🚀 Quick Start
 
-3.  **Access `code-server`:**
-    *   Open your web browser and navigate to `http://localhost:8443`.
-    *   **Password:** By default (as configured in `supervisor/code-server.conf`), authentication is **disabled** (`--auth none`). No password is required. If you modify the configuration to enable authentication, you will need to set and use a password.
+### Prerequisites
+*   Docker Engine 20.10+ or Docker Desktop
+*   Docker Compose 2.0+
+*   VS Code with Remote Development extensions (optional)
 
-4.  **Working with Project Files:**
-    The `docker-compose.yaml` file uses two **named volumes**:
-    *   `config`: Persists `code-server` settings and configurations from `/home/ubuntu/.config`.
-    *   `projects`: Persists your project files stored within `/home/ubuntu/project` inside the container.
+### 1. **Initial Setup**
+```bash
+# Navigate to project directory
+cd /home/developer/DEV/docker-dev-box
 
-    **Important:** This `docker-compose.yaml` uses a *named volume* (`projects`) managed by Docker. This means your project files are stored within Docker's internal storage area, not directly in a folder you specify on your host *by default*.
+# Configure Docker group permissions
+echo "HOST_DOCKER_GID=$(getent group docker | cut -d: -f3 || echo 988)" > .env
 
-    *   **Option 1 (Recommended for new projects):** Start `code-server` and use its built-in terminal or UI to clone repositories or create new projects directly within the `/home/ubuntu/project` directory. The data will be saved in the `projects` volume.
-    *   **Option 2 (Using existing host projects - Modify Compose):** If you prefer to work directly with projects stored in a specific folder on your host machine (like `/path/on/your/host/to/projects`), modify the `volumes` section within the `code-server` service in your `docker-compose.yaml` like this:
+# Build and start the container
+docker-compose up -d
 
-        ```yaml
-        services:
-          code-server:
-            # ... other settings ...
-            volumes:
-              - config:/home/ubuntu/.config
-              # - projects:/home/ubuntu/project # Comment out or remove the named volume
-              - /path/on/your/host/to/projects:/home/ubuntu/project # Add this bind mount
-            # ... other settings ...
+# Wait for services to initialize (30-60 seconds)
+docker-compose logs -f
+```
 
-        volumes:
-          config:
-          # projects: # You might not need the top-level 'projects' volume definition if not used above
-        ```
-        **Remember to replace `/path/on/your/host/to/projects` with the actual path on your computer.** Then run `docker-compose up -d` again.
+### 2. **Verify Installation** 
+```bash
+# Run comprehensive test suite
+./test-environment.sh
 
-5.  **Using the Environment:**
-    *   Once logged into `code-server`, you are in a VS Code environment running inside the container.
-    *   The file explorer will show the contents of `/home/ubuntu/project`.
-    *   Open a terminal within `code-server` (Terminal > New Terminal). You will be logged in as the `ubuntu` user, and the `dev_env` Conda environment will be activated automatically.
-    *   You can use `git`, `python`, `g++`, `cmake`, `make`, `gdb`, `node`, etc., directly in the terminal.
-    *   The pre-installed extensions (Python, CMake, clangd, Cloud Code with Gemini AI) should be active. You may need to log in to a Google account via the Cloud Code extension to fully utilize Gemini features.
+# Validate DevContainer configuration
+./validate-devcontainer.sh
+```
 
-6.  **Stopping the Container:**
-    To stop the container(s) defined in the compose file:
-    ```bash
-    docker-compose down
-    ```
-    *(This stops and removes the container, but preserves the named volumes by default.)*
+### 3. **Connect to Environment**
 
-7.  **Stopping and Removing Volumes:**
-    If you want to stop the container AND remove the named volumes (`config`, `projects`):
-    ```bash
-    docker-compose down -v
-    ```
+#### Option A: VS Code DevContainer (Recommended)
+1. Open VS Code in the project directory
+2. Install "Dev Containers" extension
+3. Press `Ctrl+Shift+P` → "Dev Containers: Reopen in Container"
+4. VS Code builds and connects automatically
 
-8.  **Restarting the Container:**
-    If the container is stopped, you can restart it with:
-    ```bash
-    docker-compose up -d
-    ```
+#### Option B: VS Code Remote-SSH
+```bash
+# Set up SSH keys
+./manage-ssh-keys.sh
 
-9.  **Viewing Logs:**
-    To view the logs from the running `code-server` container:
-    ```bash
-    docker-compose logs -f code-server
-    ```
-    (Press `Ctrl+C` to stop following logs).
+# Connect via Remote-SSH
+# Host: localhost, Port: 2222, User: developer
+```
 
-## 🔧 Configuration
+#### Option C: Direct Shell Access
+```bash
+# Interactive shell as developer user
+docker exec -it dev_box su - developer
 
-*   **Supervisor:** Process management is handled by Supervisor. Configuration files are located in the `supervisor/` directory within this repository and copied to `/opt/supervisor` inside the container.
-    *   `supervisor/supervisord.conf`: Main supervisor configuration.
-    *   `supervisor/code-server.conf`: Configuration for running the `code-server` process (check here for startup flags like `--auth`, `--cert`, etc.).
-*   **code-server:** User-specific settings are stored in `/home/ubuntu/.config/code-server` within the container, which is persisted by the `config` volume.
-*   **Conda:** The `dev_env` environment is activated by default for the `ubuntu` user's bash sessions via `.bashrc`. You can manage packages using `conda install`, `conda remove`, etc., within the `code-server` terminal.
+# Or quick command execution
+docker exec dev_box su - developer -c "python --version"
+```
 
-*Note: AI code generation tools assisted in the development of this project.*
+## 📋 Environment Specifications
 
-## 🌐 Remote PC Usage
+### System Architecture
+*   **Base Image:** Alpine Linux 3.20
+*   **Container Size:** ~2.6GB (optimized)
+*   **User:** developer (UID 1000, GID 1000)
+*   **Shell:** bash with completion and history
+*   **Process Manager:** supervisor for service management
 
-This development environment can be deployed and accessed on a remote PC/server, allowing you to code from anywhere with just a web browser or VS Code Remote-SSH.
+### Python Stack
+*   **Python Version:** 3.x (Alpine native)
+*   **Virtual Environment:** `/opt/miniconda/envs/dev_env`
+*   **Package Manager:** pip (latest)
+*   **Pre-installed Packages:** Development essentials
 
-### Quick Setup on Remote PC
+### Node.js Stack
+*   **Node.js Version:** 20+ LTS
+*   **Package Manager:** npm 10+
+*   **Global Tools:** Firebase CLI
+*   **Environment:** Full npm ecosystem support
 
-1. **Transfer files to remote PC:**
-   ```bash
-   # Automated transfer with setup options
-   ./transfer-to-remote.sh
-   
-   # OR manual transfer
-   git clone <repository-url>
-   cd docker-dev-box
-   ```
+### Development Tools
+```bash
+# Build & Compilation
+cmake, make, gcc, clang, gdb
 
-2. **Run the automated setup (if not done during transfer):**
-   ```bash
-   ./setup-remote-pc.sh
-   ```
+# Version Control
+git
 
-3. **Access your environment:**
-   - **Web Browser:** `https://remote-pc-ip:8443`
-   - **VS Code Remote-SSH:** Configure connection to `remote-pc-ip:2222`
-   - **Direct SSH:** `ssh -p 2222 ubuntu@remote-pc-ip`
+# Cloud Development
+gcloud CLI, Firebase CLI
 
-### Features for Remote Development
+# Network & Transfer
+curl, wget, rsync, openssh
 
-- **SSH Server:** Built-in SSH server for VS Code Remote-SSH connections
-- **Web-based Code-Server:** Access VS Code through any web browser
-- **Conda Environment:** Automatically activated for all sessions
-- **Port Forwarding:** Easy access to development servers
-- **Persistent Storage:** Your work persists across container restarts
+# USB & Hardware
+usbutils, libusb-dev, eudev-dev
+```
 
-### Security & Production
+### Container Ports
+*   **2222:** SSH Server (Remote-SSH access)
+*   **3000:** Development server (React/Node.js)
+*   **8080:** Alternative development port
+*   **9000:** Additional service port
 
-For production deployments:
-- Change default passwords
-- Set up SSH key authentication
-- Configure firewall rules
-- Use reverse proxy with SSL
+### Volume Mounts
+*   **Codespaces:** Main workspace directory (`/workspace`)
+*   **config:** User configuration (`/home/developer/.config`)
+*   **conda:** Python environment data (`/home/developer/.conda`)
+*   **Docker Socket:** Docker-in-Docker access (`/var/run/docker.sock`)
+*   **USB Devices:** Hardware access (`/dev` in privileged mode)
+## 💻 Development Workflows
 
-📖 **For detailed remote setup instructions, see [REMOTE-SETUP.md](REMOTE-SETUP.md)**
+### Python Development
+```bash
+# Activate environment (auto-activated in new shells)
+source /opt/miniconda/envs/dev_env/bin/activate
+
+# Install packages
+pip install numpy pandas matplotlib jupyter
+
+# Run Python scripts
+python app.py
+
+# Jupyter notebook server
+jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser
+```
+
+### Node.js Development
+```bash
+# Package management
+npm install express react
+
+# Global tools
+npm install -g create-react-app typescript nodemon
+
+# Development server
+npm start
+
+# Firebase development
+firebase login
+firebase init
+firebase serve
+```
+
+### Docker-in-Docker Usage
+```bash
+# Container management
+docker run hello-world
+docker build -t my-app .
+docker-compose up -d
+
+# Access host Docker
+docker ps  # Shows host containers
+docker images  # Shows host images
+```
+
+### USB Device Development
+```bash
+# List USB devices
+lsusb
+
+# Access serial devices
+ls -la /dev/tty*
+
+# Arduino/microcontroller development
+# Devices auto-accessible via dialout group
+```
+
+## 🔧 Configuration & Customization
+
+### Environment Variables (.env)
+```bash
+# Docker group ID (required for Docker-in-Docker)
+HOST_DOCKER_GID=988
+
+# Optional: Custom timezone
+TZ=Asia/Bangkok
+
+# Optional: Custom architecture
+TARGETARCH=amd64
+```
+
+### Custom Package Installation
+```bash
+# System packages (as root)
+docker exec dev_box apk add --no-cache package-name
+
+# Python packages (as developer)
+docker exec dev_box su - developer -c "pip install package-name"
+
+# Node.js packages (as developer)
+docker exec dev_box su - developer -c "npm install -g package-name"
+```
+
+### SSH Key Setup
+```bash
+# Generate and configure SSH keys
+./manage-ssh-keys.sh
+
+# Manual SSH key setup
+ssh-keygen -t ed25519 -f ~/.ssh/devbox_key
+ssh-copy-id -i ~/.ssh/devbox_key.pub -p 2222 developer@localhost
+```
+
+### VS Code Extensions
+Add extensions to `.devcontainer/devcontainer.json`:
+```json
+{
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-vscode.vscode-docker",
+        "your-extension-id"
+      ]
+    }
+  }
+}
+```
+
+## 🧪 Testing & Validation
+
+### Run Test Suites
+```bash
+# Complete environment validation
+./test-environment.sh
+
+# DevContainer configuration check
+./validate-devcontainer.sh
+
+# Specific component tests
+./test-conda-setup.sh
+./test-usb-access.sh
+```
+
+### Manual Testing
+```bash
+# Container status
+docker-compose ps
+docker stats dev_box
+
+# Service health
+docker exec dev_box supervisorctl status
+
+# Environment verification
+docker exec dev_box su - developer -c "python --version && node --version"
+```
+
+## 📚 Documentation
+
+### Comprehensive Guides
+- **[SETUP-GUIDE.md](SETUP-GUIDE.md)** - Complete setup and usage instructions
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
+- **[ACCESS-METHODS.md](ACCESS-METHODS.md)** - All connection methods explained
+
+### Migration & Conversion
+- **[ALPINE-CONVERSION.md](ALPINE-CONVERSION.md)** - Ubuntu to Alpine migration notes
+- **[REMOTE-SETUP.md](REMOTE-SETUP.md)** - Remote development setup
+
+### Specialized Topics
+- **[SSH-SETUP.md](SSH-SETUP.md)** - SSH configuration details
+- **[REMOTE-WORKFLOW.md](REMOTE-WORKFLOW.md)** - Remote development workflows
+
+## 🔍 Architecture Overview
+
+### Container Architecture
+```
+┌─────────────────────────────────────────┐
+│ Alpine Linux 3.20 Container            │
+├─────────────────────────────────────────┤
+│ Supervisor (Process Manager)            │
+│ ├── SSH Server (Port 22)               │
+│ └── (code-server disabled)             │
+├─────────────────────────────────────────┤
+│ Development Environment                 │
+│ ├── Python 3.x + Virtual Environment   │
+│ ├── Node.js 20+ + npm                  │
+│ ├── Development Tools (git, cmake, etc)│
+│ └── Cloud Tools (gcloud, firebase)     │
+├─────────────────────────────────────────┤
+│ User: developer (UID 1000)             │
+│ ├── Groups: docker, dialout, plugdev   │
+│ ├── Home: /home/developer              │
+│ └── Workspace: /workspace              │
+├─────────────────────────────────────────┤
+│ Volume Mounts                           │
+│ ├── /workspace (Codespaces volume)     │
+│ ├── /home/developer/.config            │
+│ ├── /var/run/docker.sock (Docker)      │
+│ └── /dev (USB devices, privileged)     │
+└─────────────────────────────────────────┘
+```
+
+### Network Ports
+- **2222**: SSH Server (Remote-SSH, direct SSH)
+- **3000**: Development server (React, Node.js)
+- **8080**: Alternative development port
+- **9000**: Additional service port
+
+## 🛡️ Security Considerations
+
+### Container Security
+- **Non-root User**: Development work runs as `developer` user
+- **Privilege Separation**: Only necessary services run as root
+- **Alpine Hardening**: Built on security-focused Alpine Linux
+- **Regular Updates**: Based on maintained Alpine base image
+
+### Docker-in-Docker Security
+- **Socket Mounting**: Shares host Docker daemon (be cautious with images)
+- **Group Permissions**: Proper GID matching for secure access
+- **No Privileged Docker**: Container itself doesn't run Docker daemon
+
+### SSH Security
+- **Key Authentication**: SSH key support for secure access
+- **Password Policy**: Default password should be changed for production
+- **Port Mapping**: SSH on non-standard port (2222)
+
+## 🚀 Performance Optimization
+
+### Resource Management
+```yaml
+# docker-compose.yaml optimizations
+services:
+  dev-box:
+    mem_limit: 4g      # Adjust based on available RAM
+    cpus: '2.0'        # Limit CPU usage
+    shm_size: 512m     # Shared memory for large builds
+```
+
+### Volume Performance
+```yaml
+# For better I/O on specific directories
+volumes:
+  - ./src:/workspace/src:cached
+  - ./build:/workspace/build:delegated
+```
+
+### Alpine Optimizations
+- **Package Cache**: `apk add --no-cache` prevents cache buildup
+- **Multi-stage Build**: Minimizes final image size
+- **Static Linking**: Alpine's musl libc provides smaller binaries
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit pull requests or open issues.
+### Development Guidelines
+1. **Test Changes**: Always run `./test-environment.sh` after modifications
+2. **Documentation**: Update relevant documentation files
+3. **Compatibility**: Ensure Alpine Linux compatibility
+4. **Security**: Follow security best practices
 
-# Development Environment
+### Adding New Features
+1. **Package Installation**: Add to Dockerfile with `apk add --no-cache`
+2. **Service Management**: Add supervisor configuration if needed
+3. **Testing**: Create corresponding test scripts
+4. **Documentation**: Update guides and README
 
-## Modes of Operation
+## 📄 License
 
-### 1. Devcontainer Mode (VS Code)
-- Open the project in VS Code.
-- Install the "Remote - Containers" extension.
-- Click on the green "Remote" icon in the bottom-left corner and select "Reopen in Container."
+This project is provided as-is for educational and development purposes. Feel free to modify and distribute according to your needs.
 
-### 2. Normal Mode (Docker Compose)
-- Ensure the `.env` file is configured correctly.
-- Run the following command to start the container:
-  ```bash
-  docker-compose --profile normal up -d
-  ```
+## 🆘 Support
+
+For issues and questions:
+1. **Check Documentation**: Review the comprehensive guides
+2. **Run Diagnostics**: Use `./test-environment.sh` and `./validate-devcontainer.sh`
+3. **Check Logs**: `docker-compose logs` for container issues
+4. **Troubleshooting**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 ---
 
-### **6. Optional: Add a Validation Script**
-Create a script to validate the [.env](http://_vscodecontentref_/10) file and ensure required variables are set before running in either mode.
-
-#### Example Validation Script (`validate-env.sh`):
-```bash
-#!/bin/bash
-if [ -z "$HOST_DOCKER_GID" ]; then
-  echo "Error: HOST_DOCKER_GID is not set in .env file."
-  exit 1
-fi
-if [ -z "$ARCH" ]; then
-  echo "Error: ARCH is not set in .env file."
-  exit 1
-fi
-echo "Environment variables are valid."
-```
+**Built with Alpine Linux for efficiency, security, and performance.**
 

@@ -12,6 +12,9 @@ ARG HOST_DOCKER_GID=988
 # TARGETARCH will be 'amd64' or 'arm64' depending on the build target
 ARG TARGETARCH
 
+# Configure developer user name
+ARG USERNAME=developer
+
 # Install base dependencies and development tools
 RUN apk add --no-cache \
     bash \
@@ -160,7 +163,6 @@ RUN ln -sf /usr/bin/node /usr/local/bin/node && \
     ln -sf /usr/bin/npm /usr/local/bin/npm
 
 # Configure developer user (Alpine uses adduser instead of useradd)
-ARG USERNAME=developer
 RUN adduser -D -s /bin/bash -u 1000 ${USERNAME} && \
     echo "${USERNAME}:developer" | chpasswd && \
     mkdir -p /home/${USERNAME}/.n8n && \
@@ -186,19 +188,20 @@ RUN echo '# Source .bashrc for SSH sessions' > /home/${USERNAME}/.bash_profile &
     echo 'fi' >> /home/${USERNAME}/.bash_profile && \
     # Setup Python environment activation in .bashrc
     echo '' >> /home/${USERNAME}/.bashrc && \
-    echo '# Activate dev_env Python environment by default' >> /home/${USERNAME}/.bashrc && \
-    echo 'source /opt/miniconda/envs/dev_env/bin/activate' >> /home/${USERNAME}/.bashrc && \
+    echo '# Activate dev_env Python environment by default (only if not already activated)' >> /home/${USERNAME}/.bashrc && \
+    echo 'if [[ -z "$VIRTUAL_ENV" ]]; then' >> /home/${USERNAME}/.bashrc && \
+    echo '    source /opt/miniconda/envs/dev_env/bin/activate' >> /home/${USERNAME}/.bashrc && \
+    echo 'fi' >> /home/${USERNAME}/.bashrc && \
     # Add helpful aliases for development
     echo 'alias ll="ls -la"' >> /home/${USERNAME}/.bashrc && \
     echo 'alias la="ls -A"' >> /home/${USERNAME}/.bashrc && \
     echo 'alias l="ls -CF"' >> /home/${USERNAME}/.bashrc
 
-# Create SSH directory for developer user with Python environment variables
+# Create SSH directory for developer user
 RUN mkdir -p /home/${USERNAME}/.ssh && \
     chmod 700 /home/${USERNAME}/.ssh && \
-    # Create SSH environment file for Python environment activation
-    echo "PATH=/opt/miniconda/bin:/opt/miniconda/envs/dev_env/bin:/home/${USERNAME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > /home/${USERNAME}/.ssh/environment && \
-    echo 'VIRTUAL_ENV=/opt/miniconda/envs/dev_env' >> /home/${USERNAME}/.ssh/environment && \
+    # Create SSH environment file for basic PATH only (virtual environment activated via .bashrc)
+    echo "PATH=/opt/miniconda/bin:/home/${USERNAME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > /home/${USERNAME}/.ssh/environment && \
     chmod 600 /home/${USERNAME}/.ssh/environment
 
 # Switch back to root for subsequent steps

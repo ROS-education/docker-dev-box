@@ -1,8 +1,8 @@
 {
     "name": "DEV-BOX",
-    "dockerComposeFile": "../docker-compose.yaml", // Reference the external docker-compose.yaml
-    "service": "dev-box", // Update to match the service name in docker-compose.yaml
-    "workspaceFolder": "/workspace", // Match the workspace folder in the container
+    "dockerComposeFile": "../docker-compose.yaml",
+    "service": "dev-box",
+    "workspaceFolder": "/workspace",
 
     "customizations": {
         "vscode": {
@@ -14,12 +14,26 @@
                 "esbenp.prettier-vscode",
                 "dbaeumer.vscode-eslint",
                 "EditorConfig.EditorConfig",
+                "ms-vscode.vscode-docker",
+                "ms-vscode-remote.remote-ssh",
+                "ms-vscode.cmake-tools"
             ],
             "settings": {
-                "python.defaultInterpreterPath": "/opt/miniconda/bin/python"
+                "python.defaultInterpreterPath": "/opt/miniconda/envs/dev_env/bin/python",
+                "python.terminal.activateEnvironment": true,
+                "python.terminal.activateEnvInCurrentTerminal": true,
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.profiles.linux": {
+                    "bash": {
+                        "path": "/bin/bash",
+                        "args": ["-l"]
+                    }
+                }
             }
         }
     },
     
-    "remoteUser": "ubuntu" // Ensure this matches the user in the Dockerfile
+    "postCreateCommand": "source /opt/miniconda/envs/dev_env/bin/activate && echo 'Alpine DEV-BOX environment ready!'",
+    
+    "remoteUser": "developer"
 }
