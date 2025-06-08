@@ -31,6 +31,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openjdk-17-jre-headless \
     openssh-server \
     rsync \
+    # Network utilities for host networking
+    netcat-openbsd \
+    iproute2 \
+    iptables \
+    iputils-ping \
+    traceroute \
+    dnsutils \
+    tcpdump \
+    nmap \
  && rm -rf /var/lib/apt/lists/*
 
 # Add Docker's official GPG key & repository for CLI tools
@@ -205,6 +214,7 @@ RUN mkdir -p /etc/udev/rules.d && \
 RUN mkdir -p /var/run/sshd && \
     # Configure SSH server settings for VS Code Remote-SSH
     echo 'Port 22' >> /etc/ssh/sshd_config && \
+    echo 'ListenAddress 0.0.0.0' >> /etc/ssh/sshd_config && \
     echo 'PermitRootLogin no' >> /etc/ssh/sshd_config && \
     echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config && \
     echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config && \
@@ -283,7 +293,7 @@ RUN chown -R ubuntu:ubuntu /opt/supervisor
 VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.conda","/home/ubuntu/.n8n"]
 EXPOSE 8443 22
 
-# --- IMPORTANT NOTES FOR SHARING HOST DOCKER DAEMON AND USB DEVICES ---
+# --- IMPORTANT NOTES FOR SHARING HOST DOCKER DAEMON, USB DEVICES, AND HOST NETWORK ---
 #
 # 1. Runtime Flags: You MUST run this container with:
 #    -v /var/run/docker.sock:/var/run/docker.sock
@@ -298,7 +308,39 @@ EXPOSE 8443 22
 #    --device=/dev/ttyUSB0:/dev/ttyUSB0 (for specific serial devices)
 #    --device=/dev/ttyACM0:/dev/ttyACM0 (for Arduino/microcontroller devices)
 #
-# 3. Build Argument: You SHOULD build this image with:
+# 3. Host Network Access: For host network access, run with:
+#    --network host
+#    This gives the container direct access to host network interfaces.
+#    Services will be accessible on host IP addresses directly.
+#    SSH: host_ip:22, Code-server: host_ip:8443
+#
+# 4. Build Argument: You SHOULD build this image with:
+#    --build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3 || echo 988)
+#    Replace '988' with the actual GID if the command fails. This ensures the 'docker'
+#    group inside the container has the same GID as the 'docker' group on your host,
+#    granting the 'ubuntu' user permission to use the mounted socket. If the GID inside
+#    doesn't match the GID owning the socket on the host, you'll get permission errors.
+#
+# 5. Supervisor Configuration: Ensure your supervisor/supervisord.conf file
+#    DOES NOT contain a [program:dockerd] section. Supervisor should only manage
+#    code-server and any other desired services within the container.
+#
+# 6. USB Device Discovery: The container includes usbutils (lsusb) and proper group
+#    memberships for USB device access. The ubuntu user is added to dialout, plugdev,
+#    and tty groups for comprehensive device access.
+#
+# 7. Example Docker Run Command for Full Host Integration:
+#    docker run --privileged --network host -v /dev:/dev \
+#               -v /var/run/docker.sock:/var/run/docker.sock \
+#               -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
+#               your-image-name
+#
+# 8. Host Network Benefits:
+#    - Direct access to host network interfaces
+#    - No port mapping needed - services bind to host ports directly
+#    - Better network performance
+#    - Access to host network configuration and routes
+#    - Can bind to specific host network interfaces
 #    --build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3 || echo 988)
 #    Replace '988' with the actual GID if the command fails. This ensures the 'docker'
 #    group inside the container has the same GID as the 'docker' group on your host,

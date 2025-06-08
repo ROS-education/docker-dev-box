@@ -36,6 +36,17 @@ A Dockerized development environment based on Ubuntu Noble, featuring `code-serv
 *   Git (optional, for cloning this repository).
 *   Docker Compose (or the `docker compose` plugin).
 
+## 🌐 Network Configuration
+
+This container is configured to use **host networking** by default, providing direct access to the host's network stack. This means:
+
+- **SSH Server**: Available directly on host port 22
+- **Code Server**: Available directly on host port 8443  
+- **No port mapping needed**: Services bind to host ports directly
+- **Better performance**: No network translation overhead
+
+⚠️ **Important**: If your host already runs SSH on port 22, you may need to configure port conflicts. See [HOST-NETWORK-SETUP.md](./HOST-NETWORK-SETUP.md) for detailed configuration options and troubleshooting.
+
 ## ▶️ Usage (Running with Docker Compose)
 
 This project includes a `docker-compose.yaml` file for easier management of the container and its volumes.
@@ -56,8 +67,14 @@ This project includes a `docker-compose.yaml` file for easier management of the 
     *   `--build`: Forces Docker Compose to build the image using the `Dockerfile` before starting the service. You can omit `--build` on subsequent runs if the `Dockerfile` hasn't changed.
 
 3.  **Access `code-server`:**
-    *   Open your web browser and navigate to `http://localhost:8443`.
+    *   With host networking enabled, open your web browser and navigate to:
+      - **Local access**: `http://localhost:8443` 
+      - **Remote access**: `http://<host-ip>:8443` (replace `<host-ip>` with your server's IP)
     *   **Password:** By default (as configured in `supervisor/code-server.conf`), authentication is **disabled** (`--auth none`). No password is required. If you modify the configuration to enable authentication, you will need to set and use a password.
+    *   **SSH Access:** The container also provides SSH access on port 22:
+      - `ssh ubuntu@localhost` (local)
+      - `ssh ubuntu@<host-ip>` (remote)
+      - Default password: `ubuntu` (⚠️ **Change this in production!**)
 
 4.  **Working with Project Files:**
     The `docker-compose.yaml` file uses two **named volumes**:
