@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  system-control-test:
+    image: ubuntu:22.04
+    container_name: system_control_test
+    privileged: true
+    network_mode: host
+    pid: host
+    ipc: host
+    command: >
+      bash -c "
+        apt-get update && 
+        apt-get install -y systemd-sysv util-linux curl procps &&
+        echo 'Container ready for system control testing...' &&
+        tail -f /dev/null
+      "
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /run/systemd:/run/systemd:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
