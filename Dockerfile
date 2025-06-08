@@ -23,7 +23,12 @@ RUN echo "Building for platform: ${TARGETPLATFORM:-unknown}" && \
 
 # Install base dependencies, including supervisor, clangd, wget, curl, unzip, and openssh-server
 # These packages are generally available for both amd64 and arm64
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Add retry logic for improved reliability
+RUN for i in 1 2 3; do \
+        apt-get update && break || \
+        (echo "Attempt $i failed, retrying in 5 seconds..." && sleep 5); \
+    done && \
+    apt-get install -y --no-install-recommends \
     # Base requirement
     ca-certificates \ 
     curl \
@@ -341,7 +346,7 @@ COPY supervisor /opt/supervisor
 RUN chown -R ubuntu:ubuntu /opt/supervisor
 
 VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.conda","/home/ubuntu/.n8n"]
-EXPOSE 8443 22
+EXPOSE 8443 2222
 
 # --- IMPORTANT NOTES FOR SHARING HOST DOCKER DAEMON, USB DEVICES, AND HOST NETWORK ---
 #

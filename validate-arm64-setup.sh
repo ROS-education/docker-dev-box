@@ -48,7 +48,7 @@ else
     print_error "ARM64 support missing in Dockerfile"
 fi
 
-if grep -q "Miniconda.*aarch64" Dockerfile; then
+if grep -q "MINICONDA_ARCH_SUFFIX.*aarch64" Dockerfile; then
     print_success "ARM64 Miniconda support found"
 else
     print_error "ARM64 Miniconda support missing"

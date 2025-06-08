@@ -5,6 +5,7 @@
 
 set -e
 
+# Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
@@ -133,9 +134,14 @@ esac
 
 # Determine image name
 if [ -n "$REGISTRY" ]; then
-    IMAGE_NAME="$REGISTRY/docker-dev-box:$TAG"
+    # If registry contains a slash, treat it as the full image name base
+    if [[ "$REGISTRY" == */* ]]; then
+        IMAGE_NAME="$REGISTRY:$TAG"
+    else
+        IMAGE_NAME="$REGISTRY/dev-box:$TAG"
+    fi
 else
-    IMAGE_NAME="docker-dev-box-dev-box:$TAG"
+    IMAGE_NAME="dev-box:$TAG"
 fi
 
 print_header

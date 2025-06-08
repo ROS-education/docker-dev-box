@@ -1,0 +1,174 @@
+#0 building with "arm64-builder" instance using docker-container driver
+
+#1 [internal] load build definition from Dockerfile.arm64-enhanced
+#1 transferring dockerfile: 10.40kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/ubuntu:noble-20250404
+#2 ...
+
+#3 [auth] library/ubuntu:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/ubuntu:noble-20250404
+#2 DONE 12.5s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [internal] preparing inline document
+#5 DONE 0.0s
+
+#6 [internal] preparing inline document
+#6 DONE 0.0s
+
+#7 [internal] preparing inline document
+#7 DONE 0.0s
+
+#8 [ 1/24] FROM docker.io/library/ubuntu:noble-20250404@sha256:1e622c5f073b4f6bfad6632f2616c7f59ef256e96fe78bf6a595d1dc4376ac02
+#8 resolve docker.io/library/ubuntu:noble-20250404@sha256:1e622c5f073b4f6bfad6632f2616c7f59ef256e96fe78bf6a595d1dc4376ac02 0.0s done
+#8 DONE 0.0s
+
+#9 [ 4/24] RUN mkdir /var/run/sshd &&     mkdir -p /root/.ssh &&     chmod 700 /root/.ssh
+#9 CACHED
+
+#10 [22/24] RUN mkdir -p /var/log/supervisor
+#10 CACHED
+
+#11 [21/24] COPY <<EOF /etc/supervisor/supervisord.conf
+#11 CACHED
+
+#12 [18/24] RUN mkdir -p /etc/supervisor/conf.d
+#12 CACHED
+
+#13 [ 6/24] RUN set -x &&     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg &&     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null &&     apt-get update &&     apt-get install -y docker-ce-cli docker-compose-plugin
+#13 CACHED
+
+#14 [12/24] RUN apt-get update && apt-get install -y     git     vim     nano     htop     tree     jq     build-essential     cmake     gdb     valgrind     strace     ltrace     tcpdump     netcat-openbsd     telnet     nmap     dnsutils     iputils-ping     net-tools     psmisc     procps     lsof     file     which     locate     man-db     manpages-dev     bash-completion
+#14 CACHED
+
+#15 [13/24] RUN set -x &&     ARCH=$(dpkg --print-architecture) &&     if [ "$ARCH" = "arm64" ]; then CODE_ARCH="arm64"; else CODE_ARCH="amd64"; fi &&     curl -fOL "https://github.com/coder/code-server/releases/download/v4.100.3/code-server_4.100.3_${CODE_ARCH}.deb" &&     dpkg -i "code-server_4.100.3_${CODE_ARCH}.deb" || apt-get install -f -y &&     rm "code-server_4.100.3_${CODE_ARCH}.deb"
+#15 CACHED
+
+#16 [ 5/24] RUN useradd -m -s /bin/bash developer &&     echo "developer:developer" | chpasswd &&     mkdir -p /home/developer/.ssh &&     chmod 700 /home/developer/.ssh &&     chown developer:developer /home/developer/.ssh &&     usermod -aG sudo developer &&     echo "developer ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+#16 CACHED
+
+#17 [ 2/24] RUN echo "Building for platform: linux/arm64" &&     echo "Target architecture: arm64" &&     echo "Runtime architecture: $(uname -m)" &&     echo "Runtime platform: $(uname -a)"
+#17 CACHED
+
+#18 [20/24] COPY <<EOF /etc/supervisor/conf.d/code-server.conf
+#18 CACHED
+
+#19 [ 8/24] RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - &&     apt-get install -y nodejs
+#19 CACHED
+
+#20 [10/24] RUN set -x &&     ARCH=$(dpkg --print-architecture) &&     if [ "$ARCH" = "arm64" ]; then GOARCH="arm64"; else GOARCH="amd64"; fi &&     curl -fsSL "https://go.dev/dl/go1.21.6.linux-${GOARCH}.tar.gz" | tar -xzC /usr/local &&     echo 'export PATH=$PATH:/usr/local/go/bin' >> /etc/environment
+#20 CACHED
+
+#21 [15/24] RUN mkdir -p /home/developer/.local/share/code-server/extensions &&     HOME=/home/developer /usr/bin/code-server --install-extension ms-vscode.cpptools || true &&     HOME=/home/developer /usr/bin/code-server --install-extension ms-python.python || true &&     HOME=/home/developer /usr/bin/code-server --install-extension rust-lang.rust-analyzer || true &&     HOME=/home/developer /usr/bin/code-server --install-extension golang.go || true &&     HOME=/home/developer /usr/bin/code-server --install-extension ms-vscode.vscode-typescript-next || true &&     chown -R developer:developer /home/developer/.local
+#21 CACHED
+
+#22 [17/24] RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config &&     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config &&     echo 'PermitUserEnvironment yes' >> /etc/ssh/sshd_config
+#22 CACHED
+
+#23 [11/24] RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&     echo 'source $HOME/.cargo/env' >> /etc/environment
+#23 CACHED
+
+#24 [16/24] RUN mkdir -p /home/developer/workspace &&     chown -R developer:developer /home/developer/workspace
+#24 CACHED
+
+#25 [23/24] WORKDIR /home/developer/workspace
+#25 CACHED
+
+#26 [14/24] RUN mkdir -p /home/developer/.config/code-server &&     echo 'bind-addr: 0.0.0.0:8443' > /home/developer/.config/code-server/config.yaml &&     echo 'auth: password' >> /home/developer/.config/code-server/config.yaml &&     echo 'password: developer' >> /home/developer/.config/code-server/config.yaml &&     echo 'cert: false' >> /home/developer/.config/code-server/config.yaml &&     chown -R developer:developer /home/developer/.config
+#26 CACHED
+
+#27 [ 9/24] RUN apt-get update && apt-get install -y     python3     python3-pip     python3-venv
+#27 CACHED
+
+#28 [ 3/24] RUN set -x &&     rm -f /etc/apt/sources.list.d/ubuntu.sources &&     if [ "arm64" = "arm64" ]; then         echo "deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse" > /etc/apt/sources.list &&         echo "deb http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse" >> /etc/apt/sources.list &&         echo "deb http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse" >> /etc/apt/sources.list;     else         echo "deb http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse" > /etc/apt/sources.list &&         echo "deb http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse" >> /etc/apt/sources.list &&         echo "deb http://archive.ubuntu.com/ubuntu noble-security main restricted universe multiverse" >> /etc/apt/sources.list;     fi &&     export DEBIAN_FRONTEND=noninteractive &&     echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries &&     echo 'Acquire::http::Timeout "10";' >> /etc/apt/apt.conf.d/80retries &&     echo 'Acquire::ftp::Timeout "10";' >> /etc/apt/apt.conf.d/80retries &&     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf.d/80retries &&     echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/80retries &&     for i in 1 2 3 4 5; do         echo "Update attempt $i..." &&         apt-get clean &&         apt-get update && break ||         (echo "Attempt $i failed, waiting 10 seconds..." && sleep 10);     done &&     for i in 1 2 3; do         echo "Package installation attempt $i..." &&         apt-get install -y --no-install-recommends             supervisor             clangd             wget             curl             unzip             openssh-server             ca-certificates             gnupg             lsb-release             apt-transport-https             software-properties-common             sudo && break ||         (echo "Package installation attempt $i failed, waiting 10 seconds..." && sleep 10);     done
+#28 CACHED
+
+#29 [ 7/24] RUN groupadd -g 988 docker || groupmod -g 988 docker &&     usermod -aG docker developer
+#29 CACHED
+
+#30 [19/24] COPY <<EOF /etc/supervisor/conf.d/ssh.conf
+#30 CACHED
+
+#31 [24/24] RUN apt-get clean &&     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+#31 CACHED
+
+#32 exporting to docker image format
+#32 exporting layers done
+#32 exporting manifest sha256:fff19a59ff63a46365153783bc23dbf2aa04e8eb983e34899c8f4011505b4279 done
+#32 exporting config sha256:e2812511f64eca3c9e9abb913614acb1121478af2b7b2e7a28471b1551bf3a22 done
+#32 sending tarball
+#32 ...
+
+#33 importing to docker
+#33 loading layer e03f520a17ab 294.91kB / 28.85MB
+#33 loading layer 5f70bf18a086 32B / 32B
+#33 loading layer aa371cf3e40c 557.06kB / 167.52MB
+#33 loading layer aa371cf3e40c 69.63MB / 167.52MB 2.1s
+#33 loading layer aa371cf3e40c 118.10MB / 167.52MB 4.1s
+#33 loading layer 2b600735d2a1 114B / 114B
+#33 loading layer 74bb02eb27f5 4.69kB / 4.69kB
+#33 loading layer 3dfcd2e13df6 393.22kB / 37.63MB
+#33 loading layer e3156f4e7d4b 742B / 742B
+#33 loading layer cdfe1799dbe1 557.06kB / 55.77MB
+#33 loading layer cdfe1799dbe1 54.03MB / 55.77MB 2.1s
+#33 loading layer 88a37a56ba8a 98.30kB / 8.46MB
+#33 loading layer 83457fba8858 557.06kB / 64.16MB
+#33 loading layer 83457fba8858 45.68MB / 64.16MB 2.0s
+#33 loading layer 83457fba8858 64.06MB / 64.16MB 4.1s
+#33 loading layer 9cf55c46299e 557.06kB / 258.48MB
+#33 loading layer 9cf55c46299e 84.12MB / 258.48MB 2.1s
+#33 loading layer 9cf55c46299e 161.55MB / 258.48MB 4.1s
+#33 loading layer 9cf55c46299e 199.43MB / 258.48MB 6.4s
+#33 loading layer 9cf55c46299e 203.33MB / 258.48MB 11.8s
+#33 loading layer 9cf55c46299e 231.18MB / 258.48MB 16.0s
+#33 loading layer 9cf55c46299e 250.12MB / 258.48MB 18.1s
+#33 loading layer 695e49d39f6d 557.06kB / 184.24MB
+#33 loading layer 695e49d39f6d 58.49MB / 184.24MB 2.0s
+#33 loading layer 695e49d39f6d 119.77MB / 184.24MB 4.1s
+#33 loading layer 695e49d39f6d 162.10MB / 184.24MB 6.2s
+#33 loading layer 37ee734a1939 557.06kB / 105.50MB
+#33 loading layer 37ee734a1939 51.25MB / 105.50MB 2.0s
+#33 loading layer 37ee734a1939 76.32MB / 105.50MB 4.1s
+#33 loading layer ffe59d330a8d 266B / 266B
+#33 loading layer 2144d8e83ce9 524.29kB / 51.34MB
+#33 loading layer 2144d8e83ce9 48.76MB / 51.34MB 2.0s
+#33 loading layer aa8f7a60af85 157B / 157B
+#33 loading layer 5f70bf18a086 32B / 32B 50.6s
+#33 loading layer c457a59d0cd2 1.73kB / 1.73kB
+#33 loading layer 53d6fba37258 282B / 282B
+#33 loading layer 0887ce5efbe6 439B / 439B
+#33 loading layer b646003e58d9 333B / 333B
+#33 loading layer 045d33bf927b 628B / 628B
+#33 loading layer 9cf55c46299e 258.48MB / 258.48MB 36.2s done
+#33 loading layer e03f520a17ab 28.85MB / 28.85MB 52.2s done
+#33 loading layer 5f70bf18a086 32B / 32B 50.8s done
+#33 loading layer aa371cf3e40c 167.52MB / 167.52MB 50.7s done
+#33 loading layer 2b600735d2a1 114B / 114B 44.9s done
+#33 loading layer 74bb02eb27f5 4.69kB / 4.69kB 44.9s done
+#33 loading layer 3dfcd2e13df6 37.63MB / 37.63MB 44.9s done
+#33 loading layer e3156f4e7d4b 742B / 742B 43.6s done
+#33 loading layer cdfe1799dbe1 55.77MB / 55.77MB 43.6s done
+#33 loading layer 88a37a56ba8a 8.46MB / 8.46MB 41.1s done
+#33 loading layer 83457fba8858 64.16MB / 64.16MB 40.6s done
+#33 loading layer 695e49d39f6d 184.24MB / 184.24MB 16.5s done
+#33 loading layer 37ee734a1939 105.50MB / 105.50MB 8.6s done
+#33 loading layer ffe59d330a8d 266B / 266B 2.5s done
+#33 loading layer 2144d8e83ce9 51.34MB / 51.34MB 2.5s done
+#33 loading layer aa8f7a60af85 157B / 157B 0.3s done
+#33 loading layer c457a59d0cd2 1.73kB / 1.73kB 0.2s done
+#33 loading layer 53d6fba37258 282B / 282B 0.2s done
+#33 loading layer 0887ce5efbe6 439B / 439B 0.2s done
+#33 loading layer b646003e58d9 333B / 333B 0.2s done
+#33 loading layer 045d33bf927b 628B / 628B 0.1s done
+#33 DONE 52.2s
+
+#32 exporting to docker image format
+#32 sending tarball 73.8s done
+#32 DONE 73.8s

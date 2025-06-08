@@ -2,12 +2,22 @@ version: '3.8'
 
 services:
   dev-box:
-    image: wn1980/dev-box:arm64
+    # Use local build with DNS fixes
+    # image: wn1980/dev-box:arm64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - HOST_DOCKER_GID=${HOST_DOCKER_GID:-988}
     container_name: dev_box
     privileged: true
     network_mode: host
     pid: host
     ipc: host
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     environment:
       - TZ=Asia/Bangkok
       - COMPOSE_BAKE=true

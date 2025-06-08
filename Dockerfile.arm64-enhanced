@@ -1,0 +1,258 @@
+# Multi-architecture support: Docker will automatically select the appropriate 
+# architecture based on the build context or --platform flag.
+# Supports both AMD64 (x86_64) and ARM64 (aarch64) architectures
+# Pinning to a specific date tag for reproducibility
+FROM ubuntu:noble-20250404
+
+# Define ARG for host docker group GID.
+# IMPORTANT: Set this at build time (--build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3))
+# to match your HOST's docker group GID for socket permissions.
+# Defaulting to 988 as per original, but overriding is recommended.
+ARG HOST_DOCKER_GID=988
+
+# Define automatic build arguments provided by BuildKit
+# TARGETARCH will be 'amd64' or 'arm64' depending on the build target
+ARG TARGETARCH
+ARG TARGETPLATFORM
+
+# Print build information for debugging
+RUN echo "Building for platform: ${TARGETPLATFORM:-unknown}" && \
+    echo "Target architecture: ${TARGETARCH:-unknown}" && \
+    echo "Runtime architecture: $(uname -m)" && \
+    echo "Runtime platform: $(uname -a)"
+
+# Install base dependencies, including supervisor, clangd, wget, curl, unzip, and openssh-server
+# These packages are generally available for both amd64 and arm64
+# Enhanced retry logic with fallback mirrors for better reliability
+RUN set -x && \
+    # Remove conflicting sources and configure properly for ARM64
+    rm -f /etc/apt/sources.list.d/ubuntu.sources && \
+    # Configure apt to use different mirrors based on architecture
+    if [ "$TARGETARCH" = "arm64" ]; then \
+        echo "deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse" > /etc/apt/sources.list && \
+        echo "deb http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+        echo "deb http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse" >> /etc/apt/sources.list; \
+    else \
+        echo "deb http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse" > /etc/apt/sources.list && \
+        echo "deb http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+        echo "deb http://archive.ubuntu.com/ubuntu noble-security main restricted universe multiverse" >> /etc/apt/sources.list; \
+    fi && \
+    # Configure apt for non-interactive mode and better network handling
+    export DEBIAN_FRONTEND=noninteractive && \
+    echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::http::Timeout "10";' >> /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::ftp::Timeout "10";' >> /etc/apt/apt.conf.d/80retries && \
+    echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf.d/80retries && \
+    echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/80retries && \
+    # Update with multiple attempts and better error handling
+    for i in 1 2 3 4 5; do \
+        echo "Update attempt $i..." && \
+        apt-get clean && \
+        apt-get update && break || \
+        (echo "Attempt $i failed, waiting 10 seconds..." && sleep 10); \
+    done && \
+    # Install packages with retry logic (including sudo)
+    for i in 1 2 3; do \
+        echo "Package installation attempt $i..." && \
+        apt-get install -y --no-install-recommends \
+            supervisor \
+            clangd \
+            wget \
+            curl \
+            unzip \
+            openssh-server \
+            ca-certificates \
+            gnupg \
+            lsb-release \
+            apt-transport-https \
+            software-properties-common \
+            sudo && break || \
+        (echo "Package installation attempt $i failed, waiting 10 seconds..." && sleep 10); \
+    done
+
+# Set up SSH
+RUN mkdir /var/run/sshd && \
+    mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh
+
+# Create developer user and set up SSH keys, and add to sudo group
+RUN useradd -m -s /bin/bash developer && \
+    echo "developer:developer" | chpasswd && \
+    mkdir -p /home/developer/.ssh && \
+    chmod 700 /home/developer/.ssh && \
+    chown developer:developer /home/developer/.ssh && \
+    usermod -aG sudo developer && \
+    echo "developer ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Install Docker CLI and Docker Compose
+# Architecture-specific installation
+RUN set -x && \
+    # Install Docker GPG key
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+    # Add Docker repository
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    # Update and install Docker CLI
+    apt-get update && \
+    apt-get install -y docker-ce-cli docker-compose-plugin
+
+# Create docker group with correct GID and add developer to it
+RUN groupadd -g ${HOST_DOCKER_GID} docker || groupmod -g ${HOST_DOCKER_GID} docker && \
+    usermod -aG docker developer
+
+# Install Node.js (LTS) - Architecture aware
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get install -y nodejs
+
+# Install Python 3 and pip
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv
+
+# Install Go (latest stable) - Architecture aware
+RUN set -x && \
+    ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then GOARCH="arm64"; else GOARCH="amd64"; fi && \
+    curl -fsSL "https://go.dev/dl/go1.21.6.linux-${GOARCH}.tar.gz" | tar -xzC /usr/local && \
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> /etc/environment
+
+# Install Rust - Architecture aware
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+    echo 'source $HOME/.cargo/env' >> /etc/environment
+
+# Install additional development tools
+RUN apt-get update && apt-get install -y \
+    git \
+    vim \
+    nano \
+    htop \
+    tree \
+    jq \
+    build-essential \
+    cmake \
+    gdb \
+    valgrind \
+    strace \
+    ltrace \
+    tcpdump \
+    netcat-openbsd \
+    telnet \
+    nmap \
+    dnsutils \
+    iputils-ping \
+    net-tools \
+    psmisc \
+    procps \
+    lsof \
+    file \
+    which \
+    locate \
+    man-db \
+    manpages-dev \
+    bash-completion
+
+# Install Code Server (Architecture aware)
+RUN set -x && \
+    ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then CODE_ARCH="arm64"; else CODE_ARCH="amd64"; fi && \
+    curl -fOL "https://github.com/coder/code-server/releases/download/v4.100.3/code-server_4.100.3_${CODE_ARCH}.deb" && \
+    dpkg -i "code-server_4.100.3_${CODE_ARCH}.deb" || apt-get install -f -y && \
+    rm "code-server_4.100.3_${CODE_ARCH}.deb"
+
+# Set up code-server configuration
+RUN mkdir -p /home/developer/.config/code-server && \
+    echo 'bind-addr: 0.0.0.0:8443' > /home/developer/.config/code-server/config.yaml && \
+    echo 'auth: password' >> /home/developer/.config/code-server/config.yaml && \
+    echo 'password: developer' >> /home/developer/.config/code-server/config.yaml && \
+    echo 'cert: false' >> /home/developer/.config/code-server/config.yaml && \
+    chown -R developer:developer /home/developer/.config
+
+# Install popular code-server extensions (allow failures to not block build)
+RUN mkdir -p /home/developer/.local/share/code-server/extensions && \
+    HOME=/home/developer /usr/bin/code-server --install-extension ms-vscode.cpptools || true && \
+    HOME=/home/developer /usr/bin/code-server --install-extension ms-python.python || true && \
+    HOME=/home/developer /usr/bin/code-server --install-extension rust-lang.rust-analyzer || true && \
+    HOME=/home/developer /usr/bin/code-server --install-extension golang.go || true && \
+    HOME=/home/developer /usr/bin/code-server --install-extension ms-vscode.vscode-typescript-next || true && \
+    chown -R developer:developer /home/developer/.local
+
+# Set up workspace directory
+RUN mkdir -p /home/developer/workspace && \
+    chown -R developer:developer /home/developer/workspace
+
+# Configure SSH
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    echo 'PermitUserEnvironment yes' >> /etc/ssh/sshd_config
+
+# Create supervisor configuration
+RUN mkdir -p /etc/supervisor/conf.d
+
+# SSH supervisor config
+COPY <<EOF /etc/supervisor/conf.d/ssh.conf
+[program:ssh]
+command=/usr/sbin/sshd -D
+stdout_logfile=/var/log/supervisor/ssh.log
+stderr_logfile=/var/log/supervisor/ssh.log
+autorestart=true
+priority=100
+EOF
+
+# Code Server supervisor config
+COPY <<EOF /etc/supervisor/conf.d/code-server.conf
+[program:code-server]
+command=/usr/bin/code-server --bind-addr 0.0.0.0:8443 --user-data-dir /home/developer/.local/share/code-server --extensions-dir /home/developer/.local/share/code-server/extensions /home/developer/workspace
+directory=/home/developer/workspace
+user=developer
+stdout_logfile=/var/log/supervisor/code-server.log
+stderr_logfile=/var/log/supervisor/code-server.log
+autorestart=true
+priority=200
+environment=HOME="/home/developer",USER="developer",PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin"
+EOF
+
+# Main supervisor config
+COPY <<EOF /etc/supervisor/supervisord.conf
+[unix_http_server]
+file=/var/run/supervisor.sock
+chmod=0700
+
+[supervisord]
+logfile=/var/log/supervisor/supervisord.log
+pidfile=/var/run/supervisord.pid
+childlogdir=/var/log/supervisor
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+[supervisorctl]
+serverurl=unix:///var/run/supervisor.sock
+
+[include]
+files = /etc/supervisor/conf.d/*.conf
+EOF
+
+# Create log directory
+RUN mkdir -p /var/log/supervisor
+
+# Set up environment variables
+ENV HOME=/home/developer
+ENV USER=developer
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin:/home/developer/.cargo/bin
+
+# Set working directory
+WORKDIR /home/developer/workspace
+
+# Expose ports
+EXPOSE 22 8443
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8443/healthz || exit 1
+
+# Clean up
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Start supervisor
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
