@@ -6,6 +6,7 @@ A Dockerized development environment based on Ubuntu Noble, featuring `code-serv
 
 ## ✨ Features
 
+*   **Multi-Architecture Support:** Native support for both **AMD64** (x86_64) and **ARM64** (aarch64) architectures, including Apple Silicon Macs (M1/M2/M3)
 *   **Web-Based VS Code:** Access a full VS Code experience via your browser using `code-server`.
 *   **AI Code Assistant:** Includes **Google Gemini** (via the Cloud Code extension) to assist with code generation, explanation, debugging, and more, right within the editor.
 *   **Ubuntu Noble Base:** Built on the latest Ubuntu LTS release (at the time of writing).
@@ -134,6 +135,35 @@ This project includes a `docker-compose.yaml` file for easier management of the 
     docker-compose logs -f code-server
     ```
     (Press `Ctrl+C` to stop following logs).
+
+## 🏗️ **Building & Architecture Support**
+
+This container supports both **AMD64** (Intel/AMD) and **ARM64** (Apple Silicon, ARM servers) architectures:
+
+### Quick Build Options
+
+```bash
+# Build for current platform (auto-detect)
+docker compose build
+
+# Build for specific architecture
+./build-multiarch.sh --platform arm64    # ARM64 only (Apple Silicon, ARM servers)
+./build-multiarch.sh --platform amd64    # AMD64 only (Intel/AMD)
+./build-multiarch.sh --platform all      # Both architectures
+
+# Multi-architecture with push to registry
+./build-multiarch.sh --platform all --push --registry your-registry.com
+```
+
+### Apple Silicon Mac Users
+```bash
+# Optimal for M1/M2/M3 Macs - builds native ARM64
+./build-multiarch.sh --platform arm64
+docker compose up -d
+```
+
+📖 **For detailed ARM64 support information, see [ARM64-SUPPORT.md](./ARM64-SUPPORT.md)**
+📖 **For ARM64 quick start, see [ARM64-QUICKSTART.md](./ARM64-QUICKSTART.md)**
 
 ## 🔧 Configuration
 

@@ -1,5 +1,6 @@
-# Use the base image without forcing the platform. Docker will select
-# the appropriate architecture based on the build context or --platform flag.
+# Multi-architecture support: Docker will automatically select the appropriate 
+# architecture based on the build context or --platform flag.
+# Supports both AMD64 (x86_64) and ARM64 (aarch64) architectures
 # Pinning to a specific date tag for reproducibility
 FROM ubuntu:noble-20250404
 
@@ -12,6 +13,13 @@ ARG HOST_DOCKER_GID=988
 # Define automatic build arguments provided by BuildKit
 # TARGETARCH will be 'amd64' or 'arm64' depending on the build target
 ARG TARGETARCH
+ARG TARGETPLATFORM
+
+# Print build information for debugging
+RUN echo "Building for platform: ${TARGETPLATFORM:-unknown}" && \
+    echo "Target architecture: ${TARGETARCH:-unknown}" && \
+    echo "Runtime architecture: $(uname -m)" && \
+    echo "Runtime platform: $(uname -a)"
 
 # Install base dependencies, including supervisor, clangd, wget, curl, unzip, and openssh-server
 # These packages are generally available for both amd64 and arm64
@@ -76,35 +84,46 @@ ENV PATH=$MINICONDA_PATH/bin:/home/ubuntu/.local/bin:$PATH
 RUN echo 'Defaults secure_path="/opt/miniconda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >> /etc/sudoers && \
     ln -s /opt/miniconda/bin/conda /usr/local/bin/conda
 
-# Install Miniconda - Dynamically select the correct installer based on TARGETARCH or runtime detection
+# Install Miniconda - Enhanced multi-architecture support
+# Supports AMD64 (x86_64) and ARM64 (aarch64) architectures
 RUN \
     # Determine the architecture suffix for the Miniconda filename
-    # Use TARGETARCH if available, otherwise detect at runtime
+    # Use TARGETARCH if available (from BuildKit), otherwise detect at runtime
     if [ -n "${TARGETARCH:-}" ]; then \
+        echo "Using BuildKit TARGETARCH: ${TARGETARCH}"; \
         case ${TARGETARCH} in \
             amd64) MINICONDA_ARCH_SUFFIX="x86_64" ;; \
             arm64) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
+            arm/v7) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
             *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
         esac; \
     else \
         # Fallback to runtime detection
+        echo "TARGETARCH not set, using runtime architecture detection"; \
         RUNTIME_ARCH=$(uname -m); \
         case ${RUNTIME_ARCH} in \
             x86_64) MINICONDA_ARCH_SUFFIX="x86_64" ;; \
             aarch64) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
             armv7l) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
+            arm64) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
             *) echo "Unsupported runtime architecture: ${RUNTIME_ARCH}"; exit 1 ;; \
         esac; \
     fi && \
     echo "Using Miniconda architecture: ${MINICONDA_ARCH_SUFFIX}" && \
-    # Download the correct installer
-    wget "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-${MINICONDA_ARCH_SUFFIX}.sh" -O ~/miniconda.sh && \
+    # Download the correct installer with retry logic
+    wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 --tries=5 \
+         "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-${MINICONDA_ARCH_SUFFIX}.sh" \
+         -O ~/miniconda.sh && \
+    # Verify download
+    [ -f ~/miniconda.sh ] && [ -s ~/miniconda.sh ] || (echo "Miniconda download failed" && exit 1) && \
     # Install Miniconda
     bash ~/miniconda.sh -b -p $MINICONDA_PATH && \
     rm ~/miniconda.sh && \
     # Configure Conda
     $MINICONDA_PATH/bin/conda config --system --set auto_activate_base false && \
-    $MINICONDA_PATH/bin/conda clean -afy
+    $MINICONDA_PATH/bin/conda clean -afy && \
+    # Verify installation
+    $MINICONDA_PATH/bin/conda --version
 
 # Create Conda environment 'dev_env' with specified tools
 # Conda-forge generally has good multi-arch support (linux-64, linux-aarch64)
@@ -121,23 +140,43 @@ RUN conda create -n dev_env -c conda-forge \
 # Activate the 'dev_env', install Firebase CLI globally using npm, and install ngrok  
 RUN bash -c "source /opt/miniconda/etc/profile.d/conda.sh && conda activate dev_env && npm install -g firebase-tools"
 
-# Install ngrok using bash shell to handle case statement properly
+# Install ngrok with enhanced multi-architecture support
+# Supports AMD64, ARM64, and legacy ARM architectures
 RUN /bin/bash -c 'set -e; \
-    ARCH=$(uname -m); \
-    echo "Detected architecture: $ARCH"; \
-    case $ARCH in \
-        x86_64) NGROK_ZIP="ngrok-v3-stable-linux-amd64.zip" ;; \
-        aarch64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
-        armv7l) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
-        armv6l) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
-        arm64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
-        *) echo "Unsupported runtime architecture: $ARCH"; exit 1 ;; \
-    esac; \
+    # Determine architecture - prefer TARGETARCH from BuildKit, fallback to runtime detection
+    if [ -n "${TARGETARCH:-}" ]; then \
+        echo "Using BuildKit TARGETARCH: ${TARGETARCH}"; \
+        case ${TARGETARCH} in \
+            amd64) NGROK_ZIP="ngrok-v3-stable-linux-amd64.zip" ;; \
+            arm64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
+            arm/v7) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
+            arm/v6) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
+            *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
+        esac; \
+    else \
+        # Runtime architecture detection
+        ARCH=$(uname -m); \
+        echo "TARGETARCH not set, detected runtime architecture: $ARCH"; \
+        case $ARCH in \
+            x86_64) NGROK_ZIP="ngrok-v3-stable-linux-amd64.zip" ;; \
+            aarch64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
+            armv7l) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
+            armv6l) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
+            arm64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
+            *) echo "Unsupported runtime architecture: $ARCH"; exit 1 ;; \
+        esac; \
+    fi; \
     echo "Using ngrok package: $NGROK_ZIP"; \
-    curl -O https://bin.equinox.io/c/bNyj1mQVY4c/${NGROK_ZIP}; \
+    # Download with retry logic
+    curl --retry 5 --retry-delay 2 --retry-max-time 30 \
+         -O https://bin.equinox.io/c/bNyj1mQVY4c/${NGROK_ZIP}; \
+    # Verify download
+    [ -f ${NGROK_ZIP} ] && [ -s ${NGROK_ZIP} ] || (echo "ngrok download failed" && exit 1); \
     unzip -o ${NGROK_ZIP}; \
+    chmod +x ngrok; \
     mv ngrok /usr/local/bin/ngrok; \
     rm ${NGROK_ZIP}; \
+    # Verify installation
     ngrok version'
 
 # Symlink Node.js and npm from Conda env to /usr/local/bin for sudo access
@@ -251,9 +290,20 @@ RUN mkdir -p /home/ubuntu/.ssh && \
 # Define code-server version
 ARG CODER_VERSION=4.100.2
 
-# Install specific code-server version (globally)
-# The official install script should automatically detect the architecture
-RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version ${CODER_VERSION}
+# Install code-server with enhanced multi-architecture support
+# The official install script automatically detects architecture and downloads appropriate binary
+RUN echo "Installing code-server version ${CODER_VERSION} for $(uname -m)" && \
+    # Download and verify the install script
+    curl -fsSL https://code-server.dev/install.sh -o /tmp/install-code-server.sh && \
+    # Make it executable
+    chmod +x /tmp/install-code-server.sh && \
+    # Install with specified version
+    sh /tmp/install-code-server.sh --version ${CODER_VERSION} && \
+    # Clean up
+    rm /tmp/install-code-server.sh && \
+    # Verify installation and show architecture info
+    code-server --version && \
+    echo "Code-server installed for architecture: $(uname -m)"
 
 # Generate SSL certificates (architecture independent)
 RUN mkdir -p /opt/code-server/certs && \
