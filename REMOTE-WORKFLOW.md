@@ -13,7 +13,7 @@ This script will:
 2. ✅ Transfer all project files via SCP
 3. ✅ Set proper permissions on all scripts
 4. ✅ Offer to automatically set up the full development environment:
-   - **Full Dev-Box** (Code-Server + SSH + Complete development stack)
+   - **Full Dev-Box** (SSH + Complete development stack)
 5. ✅ Optionally connect you to the remote machine
 
 ### Option 2: Manual Transfer + Automated Setup
@@ -62,8 +62,7 @@ cd docker-dev-box
 | Feature | Full Dev-Box |
 |---------|-------------|
 | **Resource Usage** | Moderate to High |
-| **Access Methods** | Web + SSH + Remote-SSH |
-| **Code-Server** | ✅ HTTPS web interface |
+| **Access Methods** | SSH + Remote-SSH |
 | **SSH Server** | ✅ Port 2222 |
 | **Conda Environment** | ✅ Python + Node + C++ |
 | **Hardware Access** | ✅ Full USB access |
@@ -91,7 +90,7 @@ The environment includes:
 # Choose: Full Dev-Box setup
 
 # 2. Access your remote environment
-# Web Browser: https://remote-pc-ip:8443
+# SSH: ssh ubuntu@remote-pc-ip
 # VS Code Remote-SSH: Connect to remote-pc-ip:2222
 # Direct SSH: ssh -p 2222 ubuntu@remote-pc-ip
 

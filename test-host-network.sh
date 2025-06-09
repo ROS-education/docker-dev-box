@@ -39,20 +39,13 @@ fi
 echo
 echo "📍 Host Port Binding Test:"
 echo "-------------------------"
-echo "Checking if SSH and Code Server ports are bound..."
+echo "Checking if SSH port is bound..."
 
 # Check SSH port
-if netstat -tuln | grep -q ":22 "; then
-    echo "✅ SSH server bound to port 22"
+if netstat -tuln | grep -q ":2222 "; then
+    echo "✅ SSH server bound to port 2222"
 else
-    echo "❌ SSH server not bound to port 22"
-fi
-
-# Check Code Server port
-if netstat -tuln | grep -q ":8443 "; then
-    echo "✅ Code Server bound to port 8443"
-else
-    echo "❌ Code Server not bound to port 8443"
+    echo "❌ SSH server not bound to port 2222"
 fi
 
 echo

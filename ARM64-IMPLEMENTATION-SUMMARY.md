@@ -73,7 +73,7 @@
 ✅ Miniconda: ARM64 (aarch64) installer configured
 ✅ Node.js: ARM64 support via Conda-forge
 ✅ ngrok: ARM64 binary download configured
-✅ VS Code Server: Auto-detection for ARM64
+✅ VS Code Remote-SSH: Native ARM64 support
 ✅ System Libraries: Native ARM64 library paths
 ```
 
@@ -113,7 +113,7 @@ docker compose up -d
 | **Python 3.12** | ✅ | ✅ | Conda-forge packages |
 | **Node.js 22** | ✅ | ✅ | Conda-forge packages |
 | **Docker CLI** | ✅ | ✅ | Official repositories |
-| **VS Code Server** | ✅ | ✅ | Official installer |
+| **VS Code Remote-SSH** | ✅ | ✅ | Native support |
 | **ngrok** | ✅ AMD64 | ✅ ARM64 | Architecture-specific |
 | **Development Tools** | ✅ | ✅ | Native toolchain |
 | **Network Utilities** | ✅ | ✅ | System packages |

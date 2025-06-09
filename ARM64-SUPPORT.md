@@ -19,7 +19,7 @@ The Docker dev-box container now has **comprehensive ARM64 (aarch64) support** a
 | **Python 3.12** | ✅ Conda-forge | ✅ Conda-forge | Native ARM64 builds |
 | **Node.js 22** | ✅ Conda-forge | ✅ Conda-forge | Native ARM64 builds |
 | **Docker CLI** | ✅ Official repos | ✅ Official repos | Multi-arch support |
-| **VS Code Server** | ✅ Official installer | ✅ Official installer | Auto-detection |
+| **VS Code Remote-SSH** | ✅ Native support | ✅ Native support | Cross-platform |
 | **ngrok** | ✅ AMD64 binary | ✅ ARM64 binary | Architecture-specific |
 | **Network Tools** | ✅ All tools | ✅ All tools | Native packages |
 | **Development Tools** | ✅ GCC, Make, CMake | ✅ GCC, Make, CMake | Native toolchain |
@@ -169,11 +169,11 @@ docker compose up -d
 ### VS Code Integration
 
 ```bash
-# Access via browser (recommended)
-open http://localhost:8443
-
-# Or via Remote-SSH
+# Access via SSH
 ssh ubuntu@localhost  # Password: ubuntu
+
+# Or via VS Code Remote-SSH
+# Use Remote-SSH extension to connect to ubuntu@localhost
 ```
 
 ### Docker Desktop Settings
@@ -304,8 +304,8 @@ cd docker-dev-box
 # Start development environment
 docker compose up -d
 
-# Access VS Code
-open http://localhost:8443
+# Access via SSH
+ssh ubuntu@localhost
 ```
 
 ## 🔗 **Related Documentation**

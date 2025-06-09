@@ -17,8 +17,7 @@ Host networking (`network_mode: host`) allows the container to use the host's ne
 
 The `docker-compose.yaml` file is already configured with `network_mode: host`. This means:
 
-- **SSH Server**: Available directly on host port 22
-- **Code Server**: Available directly on host port 8443
+- **SSH Server**: Available on port 2222
 - **All network services**: Use host networking directly
 
 ## Security Considerations
@@ -44,7 +43,6 @@ services:
 
 **Access:**
 - SSH: `ssh ubuntu@<host-ip>` (port 22)
-- Code Server: `https://<host-ip>:8443`
 
 ### Option 2: Bridge Networking with Port Mapping
 
@@ -55,13 +53,11 @@ services:
   dev-box:
     # Remove or comment out: network_mode: host
     ports:
-      - "8443:8443"  # Code Server HTTPS
       - "2222:22"    # SSH Server (mapped to avoid conflict)
 ```
 
 **Access:**
 - SSH: `ssh ubuntu@<host-ip> -p 2222`
-- Code Server: `https://<host-ip>:8443`
 
 ### Option 3: Custom SSH Port with Host Networking
 
@@ -79,7 +75,6 @@ docker-compose up -d --build
 
 **Access:**
 - SSH: `ssh ubuntu@<host-ip> -p 2222`
-- Code Server: `https://<host-ip>:8443`
 
 ## Network Utilities Included
 
@@ -142,13 +137,6 @@ If you get "Address already in use" for SSH:
 3. **Option B**: Change container SSH port (see Option 3 above)
 
 4. **Option C**: Use bridge networking (see Option 2 above)
-
-### Code Server Port Conflict
-If port 8443 is already in use, modify the supervisor configuration:
-
-1. Edit `supervisor/conf.d/code-server.conf`
-2. Change the bind address: `--bind-addr 0.0.0.0:8444`
-3. Rebuild: `docker-compose up -d --build`
 
 ### Network Performance Issues
 Host networking should provide better performance, but if you experience issues:

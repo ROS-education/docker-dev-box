@@ -219,6 +219,6 @@ The following environment variables are available in SSH sessions:
 
 ## Port Mapping
 
-- **8443** → Code Server (HTTPS)
+# Port 22 used for SSH access
 - **2222** → SSH Server
 - **22** → SSH Server (inside container)

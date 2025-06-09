@@ -21,7 +21,7 @@ docker compose build
 docker compose up -d
 
 # Access VS Code in browser
-open http://localhost:8443  # Password: (none, just press Enter)
+ssh ubuntu@localhost  # Password: ubuntu
 
 # Or SSH access
 ssh ubuntu@localhost        # Password: ubuntu
@@ -35,7 +35,7 @@ ssh ubuntu@localhost        # Password: ubuntu
 docker compose up -d
 
 # Access your development environment
-open http://localhost:8443
+ssh ubuntu@localhost
 ```
 
 ### 🏗️ **Build Options by Platform**

@@ -1,14 +1,13 @@
 # dev-box
 
-A Dockerized development environment based on Ubuntu Noble, featuring `code-server` (VS Code in the browser) managed by Supervisor. It comes pre-configured with Miniconda, essential C++/Python development tools, useful VS Code extensions (including an **AI Code Assistant**), and is ready for remote development.
+A Dockerized development environment based on Ubuntu Noble, providing a complete SSH-accessible development environment managed by Supervisor. It comes pre-configured with Miniconda, essential C++/Python development tools, and is ready for remote development via SSH.
 
 
 
 ## ✨ Features
 
 *   **Multi-Architecture Support:** Native support for both **AMD64** (x86_64) and **ARM64** (aarch64) architectures, including Apple Silicon Macs (M1/M2/M3)
-*   **Web-Based VS Code:** Access a full VS Code experience via your browser using `code-server`.
-*   **AI Code Assistant:** Includes **Google Gemini** (via the Cloud Code extension) to assist with code generation, explanation, debugging, and more, right within the editor.
+*   **SSH-Based Development:** Access a full development environment via SSH with VS Code Remote Development.
 *   **Ubuntu Noble Base:** Built on the latest Ubuntu LTS release (at the time of writing).
 *   **Miniconda:** Includes Miniconda for robust Python package and environment management.
 *   **Pre-configured Conda Environment (`dev_env`):**
@@ -21,15 +20,10 @@ A Dockerized development environment based on Ubuntu Noble, featuring `code-serv
 *   **System Tools:**
     *   `git` for version control.
     *   `clangd` for C/C++ language intelligence (installed via apt).
-*   **Process Management:** Uses `supervisor` to manage the `code-server` process reliably.
-*   **Non-root User:** Runs `code-server` and development tasks as a standard user (`ubuntu`, UID/GID 1000) with passwordless `sudo` access.
-*   **Pre-installed VS Code Extensions:**
-    *   `googlecloudtools.cloudcode`: Google Cloud integration and **Gemini AI assistant**.
-    *   `llvm-vs-code-extensions.vscode-clangd`: Clangd integration.
-    *   `ms-python.python`: Python language support.
-    *   `ms-vscode.cmake-tools`: CMake project support.
-*   **Persistent Storage:** Uses Docker volumes to persist `code-server` configuration and user project files between container runs.
-*   **Secure Access (Optional):** Generates self-signed SSL certificates (though enabling HTTPS depends on the `code-server` startup command within the supervisor configuration).
+*   **Process Management:** Uses `supervisor` to manage SSH and other services reliably.
+*   **Non-root User:** Runs development tasks as a standard user (`ubuntu`, UID/GID 1000) with passwordless `sudo` access.
+*   **Persistent Storage:** Uses Docker volumes to persist user configuration and project files between container runs.
+*   **SSH Access:** Secure SSH server running on port 22 with both password and key-based authentication.
 
 ## ⚙️ Prerequisites
 
@@ -42,7 +36,6 @@ A Dockerized development environment based on Ubuntu Noble, featuring `code-serv
 This container is configured to use **host networking** by default, providing direct access to the host's network stack. This means:
 
 - **SSH Server**: Available directly on host port 22
-- **Code Server**: Available directly on host port 8443  
 - **No port mapping needed**: Services bind to host ports directly
 - **Better performance**: No network translation overhead
 
@@ -67,48 +60,41 @@ This project includes a `docker-compose.yaml` file for easier management of the 
     *   `-d`: Runs the container(s) in detached mode (in the background).
     *   `--build`: Forces Docker Compose to build the image using the `Dockerfile` before starting the service. You can omit `--build` on subsequent runs if the `Dockerfile` hasn't changed.
 
-3.  **Access `code-server`:**
-    *   With host networking enabled, open your web browser and navigate to:
-      - **Local access**: `http://localhost:8443` 
-      - **Remote access**: `http://<host-ip>:8443` (replace `<host-ip>` with your server's IP)
-    *   **Password:** By default (as configured in `supervisor/code-server.conf`), authentication is **disabled** (`--auth none`). No password is required. If you modify the configuration to enable authentication, you will need to set and use a password.
-    *   **SSH Access:** The container also provides SSH access on port 22:
-      - `ssh ubuntu@localhost` (local)
-      - `ssh ubuntu@<host-ip>` (remote)
+3.  **Access the development environment:**
+    *   **SSH Access:** The container provides SSH access on port 2222:
+      - `ssh -p 2222 ubuntu@localhost` (local)
+      - `ssh -p 2222 ubuntu@<host-ip>` (remote)
       - Default password: `ubuntu` (⚠️ **Change this in production!**)
 
 4.  **Working with Project Files:**
-    The `docker-compose.yaml` file uses two **named volumes**:
-    *   `config`: Persists `code-server` settings and configurations from `/home/ubuntu/.config`.
-    *   `projects`: Persists your project files stored within `/home/ubuntu/project` inside the container.
+    The `docker-compose.yaml` file uses named volumes:
+    *   `config`: Persists user settings and configurations from `/home/ubuntu/.config`.
+    *   `conda`: Persists Conda environments and packages from `/home/ubuntu/.conda`.
+    *   `Codespaces`: General workspace volume for projects.
 
-    **Important:** This `docker-compose.yaml` uses a *named volume* (`projects`) managed by Docker. This means your project files are stored within Docker's internal storage area, not directly in a folder you specify on your host *by default*.
+    **Important:** This `docker-compose.yaml` uses *named volumes* managed by Docker. This means your project files are stored within Docker's internal storage area, not directly in a folder you specify on your host *by default*.
 
-    *   **Option 1 (Recommended for new projects):** Start `code-server` and use its built-in terminal or UI to clone repositories or create new projects directly within the `/home/ubuntu/project` directory. The data will be saved in the `projects` volume.
-    *   **Option 2 (Using existing host projects - Modify Compose):** If you prefer to work directly with projects stored in a specific folder on your host machine (like `/path/on/your/host/to/projects`), modify the `volumes` section within the `code-server` service in your `docker-compose.yaml` like this:
+    *   **Option 1 (Recommended for new projects):** SSH into the container and use the terminal to clone repositories or create new projects directly within the `/workspace` directory. The data will be saved in the mounted volumes.
+    *   **Option 2 (Using existing host projects - Modify Compose):** If you prefer to work directly with projects stored in a specific folder on your host machine (like `/path/on/your/host/to/projects`), modify the `volumes` section within the `dev-box` service in your `docker-compose.yaml` like this:
 
         ```yaml
         services:
-          code-server:
+          dev-box:
             # ... other settings ...
             volumes:
               - config:/home/ubuntu/.config
-              # - projects:/home/ubuntu/project # Comment out or remove the named volume
-              - /path/on/your/host/to/projects:/home/ubuntu/project # Add this bind mount
+              - conda:/home/ubuntu/.conda
+              - Codespaces:/workspace
+              - /path/on/your/host/to/projects:/home/ubuntu/projects  # Add this bind mount
             # ... other settings ...
-
-        volumes:
-          config:
-          # projects: # You might not need the top-level 'projects' volume definition if not used above
         ```
         **Remember to replace `/path/on/your/host/to/projects` with the actual path on your computer.** Then run `docker-compose up -d` again.
 
 5.  **Using the Environment:**
-    *   Once logged into `code-server`, you are in a VS Code environment running inside the container.
-    *   The file explorer will show the contents of `/home/ubuntu/project`.
-    *   Open a terminal within `code-server` (Terminal > New Terminal). You will be logged in as the `ubuntu` user, and the `dev_env` Conda environment will be activated automatically.
+    *   Once connected via SSH, you are in a full Ubuntu development environment running inside the container.
+    *   Open a terminal session. You will be logged in as the `ubuntu` user, and the `dev_env` Conda environment will be activated automatically.
     *   You can use `git`, `python`, `g++`, `cmake`, `make`, `gdb`, `node`, etc., directly in the terminal.
-    *   The pre-installed extensions (Python, CMake, clangd, Cloud Code with Gemini AI) should be active. You may need to log in to a Google account via the Cloud Code extension to fully utilize Gemini features.
+    *   For a full IDE experience, use VS Code with the Remote-SSH extension to connect to the container.
 
 6.  **Stopping the Container:**
     To stop the container(s) defined in the compose file:
@@ -130,9 +116,9 @@ This project includes a `docker-compose.yaml` file for easier management of the 
     ```
 
 9.  **Viewing Logs:**
-    To view the logs from the running `code-server` container:
+    To view the logs from the running container:
     ```bash
-    docker-compose logs -f code-server
+    docker-compose logs -f dev-box
     ```
     (Press `Ctrl+C` to stop following logs).
 
@@ -169,15 +155,15 @@ docker compose up -d
 
 *   **Supervisor:** Process management is handled by Supervisor. Configuration files are located in the `supervisor/` directory within this repository and copied to `/opt/supervisor` inside the container.
     *   `supervisor/supervisord.conf`: Main supervisor configuration.
-    *   `supervisor/code-server.conf`: Configuration for running the `code-server` process (check here for startup flags like `--auth`, `--cert`, etc.).
-*   **code-server:** User-specific settings are stored in `/home/ubuntu/.config/code-server` within the container, which is persisted by the `config` volume.
-*   **Conda:** The `dev_env` environment is activated by default for the `ubuntu` user's bash sessions via `.bashrc`. You can manage packages using `conda install`, `conda remove`, etc., within the `code-server` terminal.
+    *   `supervisor/conf.d/sshd.conf`: Configuration for running the SSH server process.
+*   **SSH Server:** SSH configuration is handled via standard `/etc/ssh/sshd_config` with enhancements for remote development.
+*   **Conda:** The `dev_env` environment is activated by default for the `ubuntu` user's bash sessions via `.bashrc`. You can manage packages using `conda install`, `conda remove`, etc., within SSH terminals.
 
 *Note: AI code generation tools assisted in the development of this project.*
 
 ## 🌐 Remote PC Usage
 
-This development environment can be deployed and accessed on a remote PC/server, allowing you to code from anywhere with just a web browser or VS Code Remote-SSH.
+This development environment can be deployed and accessed on a remote PC/server, allowing you to develop from anywhere using SSH connections.
 
 ### Quick Setup on Remote PC
 
@@ -197,14 +183,12 @@ This development environment can be deployed and accessed on a remote PC/server,
    ```
 
 3. **Access your environment:**
-   - **Web Browser:** `https://remote-pc-ip:8443`
-   - **VS Code Remote-SSH:** Configure connection to `remote-pc-ip:2222`
-   - **Direct SSH:** `ssh -p 2222 ubuntu@remote-pc-ip`
+   - **VS Code Remote-SSH:** Configure connection to `remote-pc-ip:22`
+   - **Direct SSH:** `ssh ubuntu@remote-pc-ip`
 
 ### Features for Remote Development
 
 - **SSH Server:** Built-in SSH server for VS Code Remote-SSH connections
-- **Web-based Code-Server:** Access VS Code through any web browser
 - **Conda Environment:** Automatically activated for all sessions
 - **Port Forwarding:** Easy access to development servers
 - **Persistent Storage:** Your work persists across container restarts
@@ -213,6 +197,9 @@ This development environment can be deployed and accessed on a remote PC/server,
 
 For production deployments:
 - Change default passwords
+- Set up SSH key authentication
+- Configure firewall rules
+- Use reverse proxy with SSL
 - Set up SSH key authentication
 - Configure firewall rules
 - Use reverse proxy with SSL

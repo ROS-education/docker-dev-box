@@ -257,7 +257,7 @@ RUN mkdir -p /etc/udev/rules.d && \
 # Configure SSH server for Remote-SSH compatibility
 RUN mkdir -p /var/run/sshd && \
     # Configure SSH server settings for VS Code Remote-SSH
-    echo 'Port 22' >> /etc/ssh/sshd_config && \
+    echo 'Port 2222' >> /etc/ssh/sshd_config && \
     echo 'ListenAddress 0.0.0.0' >> /etc/ssh/sshd_config && \
     echo 'PermitRootLogin no' >> /etc/ssh/sshd_config && \
     echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config && \
@@ -292,49 +292,8 @@ RUN mkdir -p /home/ubuntu/.ssh && \
     chown ubuntu:ubuntu /home/ubuntu/.ssh/environment && \
     chmod 600 /home/ubuntu/.ssh/environment
 
-# Define code-server version
-ARG CODER_VERSION=4.100.2
-
-# Install code-server with enhanced multi-architecture support
-# The official install script automatically detects architecture and downloads appropriate binary
-RUN echo "Installing code-server version ${CODER_VERSION} for $(uname -m)" && \
-    # Download and verify the install script
-    curl -fsSL https://code-server.dev/install.sh -o /tmp/install-code-server.sh && \
-    # Make it executable
-    chmod +x /tmp/install-code-server.sh && \
-    # Install with specified version
-    sh /tmp/install-code-server.sh --version ${CODER_VERSION} && \
-    # Clean up
-    rm /tmp/install-code-server.sh && \
-    # Verify installation and show architecture info
-    code-server --version && \
-    echo "Code-server installed for architecture: $(uname -m)"
-
-# Generate SSL certificates (architecture independent)
-RUN mkdir -p /opt/code-server/certs && \
-    openssl req -x509 -nodes -days 365 \
-      -newkey rsa:2048 \
-      -keyout /opt/code-server/certs/key.pem \
-      -out /opt/code-server/certs/cert.pem \
-      -subj "/C=US/ST=California/L=San Francisco/O=IT/CN=localhost" && \
-    chown -R ubuntu:ubuntu /opt/code-server/certs
-
-# Switch to ubuntu user for subsequent steps
-USER ubuntu
-
-# Install VS Code extensions
-# Run as root, as code-server was installed globally by root
-# These extensions generally support multiple architectures or are architecture-agnostic
-# Install extensions in a single layer. Removed --force, add back if needed for specific extensions.
-RUN code-server --install-extension llvm-vs-code-extensions.vscode-clangd \
- && code-server --install-extension ms-python.python \
- && code-server --install-extension ms-vscode.cmake-tools \
-#  && code-server --install-extension google.geminicodeassist \
-#  && code-server --install-extension DanielSanMedium.dscodegpt \
-#  && code-server --install-extension rjmacarthy.twinny \
- && code-server --install-extension ms-azuretools.vscode-docker 
- 
 # Set Workdir as ubuntu user
+USER ubuntu
 WORKDIR /workspace
 
 # Switch back to root user before CMD to start supervisord as root
@@ -346,7 +305,7 @@ COPY supervisor /opt/supervisor
 RUN chown -R ubuntu:ubuntu /opt/supervisor
 
 VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.conda","/home/ubuntu/.n8n"]
-EXPOSE 8443 2222
+EXPOSE 2222
 
 # --- IMPORTANT NOTES FOR SHARING HOST DOCKER DAEMON, USB DEVICES, AND HOST NETWORK ---
 #
@@ -367,7 +326,7 @@ EXPOSE 8443 2222
 #    --network host
 #    This gives the container direct access to host network interfaces.
 #    Services will be accessible on host IP addresses directly.
-#    SSH: host_ip:22, Code-server: host_ip:8443
+#    SSH: host_ip:22
 #
 # 4. Build Argument: You SHOULD build this image with:
 #    --build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3 || echo 988)
@@ -378,7 +337,7 @@ EXPOSE 8443 2222
 #
 # 5. Supervisor Configuration: Ensure your supervisor/supervisord.conf file
 #    DOES NOT contain a [program:dockerd] section. Supervisor should only manage
-#    code-server and any other desired services within the container.
+#    SSH and any other desired services within the container.
 #
 # 6. USB Device Discovery: The container includes usbutils (lsusb) and proper group
 #    memberships for USB device access. The ubuntu user is added to dialout, plugdev,
@@ -404,7 +363,7 @@ EXPOSE 8443 2222
 #
 # 4. Supervisor Configuration: Ensure your supervisor/supervisord.conf file
 #    DOES NOT contain a [program:dockerd] section. Supervisor should only manage
-#    code-server and any other desired services within the container.
+#    SSH and any other desired services within the container.
 #
 # 5. USB Device Discovery: The container includes usbutils (lsusb) and proper group
 #    memberships for USB device access. The ubuntu user is added to dialout, plugdev,
@@ -412,7 +371,7 @@ EXPOSE 8443 2222
 #
 # 6. Example Docker Run Command for Full USB Access:
 #    docker run --privileged -v /dev:/dev -v /var/run/docker.sock:/var/run/docker.sock \
-#               -p 8443:8443 -p 2222:22 your-image-name
+#               -p 2222:22 your-image-name
 
 # Install bash-completion and configure bash history
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -435,5 +394,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # Run supervisord using the main configuration file
-# Supervisor should now only manage code-server (and any other non-docker services)
+# Supervisor should now only manage SSH and any other non-docker services
 CMD ["/usr/bin/supervisord", "-c", "/opt/supervisor/supervisord.conf"]

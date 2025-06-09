@@ -74,7 +74,9 @@ services:
     # NOTE: When using network_mode: host, port mapping is not needed
     # Services bind to host ports directly
     # ports:
-    #  - "8443:8443"  # Code Server HTTPS
+    # Development environment ports
+    ports:
+      - "2222:2222"    # SSH server
     #  - "2222:22"    # SSH Server for Remote-SSH
     
     restart: unless-stopped
@@ -93,7 +95,7 @@ services:
 
     # Optional: Add labels for organization
     labels:
-      - "com.example.description=Code Server Development Environment with Capabilities"
+      - "com.example.description=Development Environment with Linux Capabilities"
       - "com.example.project=docker-dev-box"
       - "com.example.security=capability-based"
 

@@ -4,18 +4,7 @@ This document provides a quick reference for all the ways you can access and use
 
 ## 🏠 Local Usage
 
-### Method 1: Web Browser (Code-Server)
-```bash
-# Start the container
-docker-compose up -d
-
-# Access in browser
-https://localhost:8443
-```
-- **Pros:** Works from any device with a browser, no software installation needed
-- **Cons:** Some VS Code features may be limited compared to desktop VS Code
-
-### Method 2: VS Code Remote-Containers
+### Method 1: VS Code Remote-Containers
 ```bash
 # Open in VS Code with Remote-Containers extension
 code .
@@ -35,18 +24,7 @@ ssh -p 2222 ubuntu@localhost
 
 ## 🌐 Remote PC Usage
 
-### Method 1: Web Browser Access
-```bash
-# On remote PC
-./setup-remote-pc.sh
-
-# From any device
-https://remote-pc-ip:8443
-```
-- **Pros:** Access from anywhere, any device, no software needed
-- **Cons:** Requires HTTPS certificate handling, some features limited
-
-### Method 2: VS Code Remote-SSH
+### Method 1: VS Code Remote-SSH
 ```bash
 # Add to ~/.ssh/config on local machine
 Host remote-dev
@@ -61,10 +39,11 @@ Host remote-dev
 
 ### Method 3: SSH with Port Forwarding
 ```bash
-# Create SSH tunnel for code-server
-ssh -L 8443:localhost:8443 -L 2222:localhost:2222 user@remote-pc-ip
+# Create SSH tunnel for container access
+ssh -L 2222:localhost:22 user@remote-pc-ip
 
-# Then access via localhost:8443 or localhost:2222
+# Then access via localhost:2222
+ssh ubuntu@localhost -p 2222
 ```
 - **Pros:** Secure tunneled connection, can use local browser/VS Code
 - **Cons:** Requires maintaining SSH connection
@@ -81,7 +60,6 @@ ssh -p 2222 ubuntu@remote-pc-ip
 
 | Access Method | Default Auth | Recommended for Production |
 |---------------|--------------|----------------------------|
-| Code-Server Web | None (`--auth none`) | Password or OAuth |
 | SSH to Container | Password: `ubuntu` | SSH keys |
 | VS Code Remote-SSH | SSH password/keys | SSH keys only |
 
@@ -91,7 +69,9 @@ ssh -p 2222 ubuntu@remote-pc-ip
 ```bash
 # Full setup
 docker-compose up -d --build
-open https://localhost:8443
+
+# Access via SSH
+ssh ubuntu@localhost
 
 # OR with VS Code
 code .  # Then reopen in container
@@ -131,7 +111,6 @@ All access methods provide:
 
 | Method | Resource Usage | Features | Best For |
 |--------|----------------|----------|----------|
-| Code-Server Web | High | 90% VS Code | Remote access, any device |
 | Remote-Containers | Medium | 100% VS Code | Local development |
 | Remote-SSH | Low | 100% VS Code | Remote development |
 | SSH Direct | Very Low | CLI only | Server management |
@@ -150,11 +129,10 @@ docker-compose build --no-cache
 ```bash
 # Check firewall
 sudo ufw status
-sudo ufw allow 8443/tcp
-sudo ufw allow 2222/tcp
+sudo ufw allow 22/tcp
 
-# Check if ports are listening
-sudo netstat -tlnp | grep -E "(8443|2222)"
+# Check if SSH port is listening
+sudo netstat -tlnp | grep ":22"
 ```
 
 ### Conda Environment Issues
@@ -176,8 +154,7 @@ docker exec dev_box supervisorctl status sshd
 ```
 
 Choose the access method that best fits your needs:
-- **Local development:** Remote-Containers or Code-Server web
+- **Local development:** Remote-Containers
 - **Remote development:** VS Code Remote-SSH
 - **Server management:** Direct SSH
 - **Resource-constrained:** VS Code SSH container
-- **Any device access:** Code-Server web interface

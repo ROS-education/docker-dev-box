@@ -21,15 +21,15 @@ docker compose up -d --build
 
 ## 🌐 Access Your Development Environment
 
-### Code Server (VS Code in Browser)
-- **Local**: http://localhost:8443
-- **Remote**: http://YOUR_HOST_IP:8443
-- **Auth**: None (disabled by default)
-
 ### SSH Access
 - **Local**: `ssh ubuntu@localhost`
 - **Remote**: `ssh ubuntu@YOUR_HOST_IP`
 - **Password**: `ubuntu` (⚠️ **Change in production!**)
+
+### VS Code Remote Development
+- Use VS Code with Remote-SSH extension
+- Connect to `ubuntu@localhost` or `ubuntu@YOUR_HOST_IP`
+- Full IDE experience with all extensions and features
 
 ## 🧪 Test Everything Works
 
@@ -88,13 +88,11 @@ docker compose down && docker compose up -d --build
 - ✅ Docker socket access
 - ✅ Full device access
 - ⚠️ Default passwords
-- ⚠️ No authentication on code-server
 
 ### For Production/Remote Use
 1. **Change passwords**: `docker exec -it dev_box passwd ubuntu`
 2. **Enable SSH keys**: See `SSH-SETUP.md`
-3. **Configure firewall**: Limit access to ports 22 and 8443
-4. **Enable code-server auth**: See `HOST-NETWORK-SETUP.md`
+3. **Configure firewall**: Limit access to port 22 (SSH only)
 
 ## 📚 Documentation
 

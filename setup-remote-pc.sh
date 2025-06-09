@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-DEFAULT_PORTS="8443,2222"
+DEFAULT_PORTS="2222"
 CONTAINER_NAME="dev_box"
 
 print_header() {
@@ -89,15 +89,16 @@ configure_firewall() {
             print_status "UFW is active, configuring ports..."
             
             # Allow necessary ports
-            sudo ufw allow 8443/tcp comment "Code-Server HTTPS"
+            # Remove old code-server port (no longer needed)
+            # sudo ufw allow 8443/tcp comment "Code-Server HTTPS"
             sudo ufw allow 2222/tcp comment "Docker SSH Container"
             
-            print_status "Firewall configured for ports 8443 and 2222"
+            print_status "Firewall configured for port 2222 (SSH)"
         else
             print_warning "UFW is not active. Consider enabling it: sudo ufw --force enable"
         fi
     else
-        print_warning "UFW not found. Please configure firewall manually to allow ports 8443 and 2222"
+        print_warning "UFW not found. Please configure firewall manually to allow port 2222 (SSH)"
     fi
 }
 
@@ -188,7 +189,7 @@ show_access_info() {
     SERVER_IP=$(hostname -I | awk '{print $1}')
     
     echo -e "${GREEN}Access Information:${NC}"
-    echo -e "  ${BLUE}Code-Server (Web):${NC}    https://$SERVER_IP:8443"
+    echo -e "  ${BLUE}SSH Access:${NC}        ssh ubuntu@$SERVER_IP"
     echo -e "  ${BLUE}SSH to Container:${NC}     ssh -p 2222 ubuntu@$SERVER_IP"
     echo -e "  ${BLUE}Default SSH Password:${NC} ubuntu"
     echo
@@ -209,9 +210,8 @@ show_access_info() {
     echo
     
     echo -e "${GREEN}Next Steps:${NC}"
-    echo "  1. Access Code-Server at https://$SERVER_IP:8443"
-    echo "  2. Or connect via VS Code Remote-SSH"
-    echo "  3. Or SSH directly: ssh -p 2222 ubuntu@$SERVER_IP"
+    echo "  1. Connect via VS Code Remote-SSH"
+    echo "  2. Or SSH directly: ssh ubuntu@$SERVER_IP"
     echo
     echo -e "${YELLOW}Security Note:${NC}"
     echo "  Change the default password: docker exec $CONTAINER_NAME passwd ubuntu"

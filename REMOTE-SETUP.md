@@ -12,7 +12,6 @@ This guide explains how to run and access your Docker development environment on
 ### On Your Local Machine
 - SSH client
 - VS Code with Remote-SSH extension (optional)
-- Web browser for code-server access
 
 ## Setup Steps
 
@@ -70,11 +69,8 @@ chmod +x *.sh
 ### 3. Configure Remote PC Firewall
 
 ```bash
-# Allow code-server port (8443)
-sudo ufw allow 8443/tcp
-
-# Allow SSH container port (2222) 
-sudo ufw allow 2222/tcp
+# Allow SSH container port (22)
+sudo ufw allow 22/tcp
 
 # Optional: Allow SSH access to remote PC itself
 sudo ufw allow ssh
@@ -98,29 +94,9 @@ docker-compose logs -f
 
 ## Access Methods
 
-### Method 1: Code-Server (Web IDE)
+### Method 1: VS Code Remote-SSH
 
-Access the web-based VS Code from any browser:
-
-```
-https://remote-pc-ip:8443
-```
-
-**First-time setup:**
-1. Accept the self-signed certificate warning
-2. Enter password if prompted (check logs: `docker-compose logs dev-box | grep password`)
-
-### Method 2: VS Code Remote-SSH
-
-**Step 1: Set up SSH tunnel from local machine**
-```bash
-# Create SSH tunnel for code-server (optional)
-ssh -L 8443:localhost:8443 -L 2222:localhost:2222 user@remote-pc-ip
-
-# Keep this terminal open
-```
-
-**Step 2: Configure VS Code Remote-SSH**
+**Step 1: Configure VS Code Remote-SSH**
 
 Add to your local `~/.ssh/config`:
 
@@ -128,37 +104,27 @@ Add to your local `~/.ssh/config`:
 # Direct connection to container SSH
 Host remote-dev-container
     HostName remote-pc-ip
-    Port 2222
-    User ubuntu
-    ForwardAgent yes
-    ServerAliveInterval 60
-    ServerAliveCountMax 10
-
-# Via SSH tunnel (alternative)
-Host remote-dev-tunnel
-    HostName localhost
-    Port 2222
+    Port 22
     User ubuntu
     ForwardAgent yes
     ServerAliveInterval 60
     ServerAliveCountMax 10
 ```
 
-**Step 3: Connect with VS Code**
+**Step 2: Connect with VS Code**
 1. Open VS Code
 2. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
 3. Type "Remote-SSH: Connect to Host"
-4. Select `remote-dev-container` or `remote-dev-tunnel`
+4. Select `remote-dev-container`
 5. Enter password: `ubuntu` (default)
 
-### Method 3: Direct SSH Access
+### Method 2: Direct SSH Access
 
 ```bash
 # Direct SSH to container
-ssh -p 2222 ubuntu@remote-pc-ip
+ssh ubuntu@remote-pc-ip
 
-# Or via tunnel
-ssh -p 2222 ubuntu@localhost  # (after setting up tunnel)
+# Default password: ubuntu
 ```
 
 ## SSH Key Setup (Recommended)
@@ -179,8 +145,7 @@ docker exec dev_box chmod 600 /home/ubuntu/.ssh/authorized_keys
 
 | Service | Container Port | Host Port | External Access |
 |---------|----------------|-----------|-----------------|
-| Code-Server (HTTPS) | 8443 | 8443 | https://remote-pc-ip:8443 |
-| SSH to Container | 22 | 2222 | ssh -p 2222 ubuntu@remote-pc-ip |
+| SSH to Container | 22 | 22 | ssh ubuntu@remote-pc-ip |
 | SSH to Remote PC | 22 | 22 | ssh user@remote-pc-ip |
 
 ## Security Considerations
@@ -202,17 +167,15 @@ docker exec dev_box chmod 600 /home/ubuntu/.ssh/authorized_keys
 3. **Configure firewall rules:**
    ```bash
    # Restrict access to specific IPs
-   sudo ufw delete allow 8443/tcp
-   sudo ufw delete allow 2222/tcp
-   sudo ufw allow from your-local-ip to any port 8443
-   sudo ufw allow from your-local-ip to any port 2222
+   sudo ufw delete allow 22/tcp
+   sudo ufw allow from your-local-ip to any port 22
    ```
 
 4. **Use reverse proxy with SSL:**
    ```bash
    # Example with nginx
    sudo apt install nginx certbot python3-certbot-nginx
-   # Configure nginx to proxy to localhost:8443
+   # Configure nginx proxy if needed for additional services
    # Setup Let's Encrypt SSL
    ```
 
@@ -235,7 +198,7 @@ docker-compose up -d
 ### Can't Access from Outside
 ```bash
 # Check if ports are listening
-sudo netstat -tlnp | grep -E "(8443|2222)"
+sudo netstat -tlnp | grep 22
 
 # Check firewall
 sudo ufw status
@@ -247,25 +210,13 @@ docker port dev_box
 ### SSH Connection Issues
 ```bash
 # Test SSH connectivity
-telnet remote-pc-ip 2222
+telnet remote-pc-ip 22
 
 # Check SSH service in container
 docker exec dev_box supervisorctl status sshd
 
 # Restart SSH service
 docker exec dev_box supervisorctl restart sshd
-```
-
-### Code-Server Issues
-```bash
-# Check code-server service
-docker exec dev_box supervisorctl status code-server
-
-# View code-server logs
-docker exec dev_box supervisorctl tail -f code-server
-
-# Restart code-server
-docker exec dev_box supervisorctl restart code-server
 ```
 
 ## Advanced Configuration

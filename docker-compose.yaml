@@ -3,12 +3,12 @@ version: '3.8'
 services:
   dev-box:
     # Use local build with DNS fixes
-    # image: wn1980/dev-box:arm64
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - HOST_DOCKER_GID=${HOST_DOCKER_GID:-988}
+    image: wn1980/dev-box:amd64
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    #   args:
+    #     - HOST_DOCKER_GID=${HOST_DOCKER_GID:-988}
     container_name: dev_box
     privileged: true
     network_mode: host
@@ -33,7 +33,7 @@ services:
       - /run/systemd:/run/systemd:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-fk", "http://localhost:8443/healthz"]
+      test: ["CMD", "pgrep", "-f", "sshd"]
       interval: 30s
       timeout: 10s
       retries: 3

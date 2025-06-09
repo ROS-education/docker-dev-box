@@ -65,12 +65,6 @@ echo
 echo "🔧 Checking Supervisor Configuration..."
 echo "-------------------------------------"
 
-if [ -f "supervisor/conf.d/code-server.conf" ]; then
-    echo "✅ Code Server supervisor config found"
-else
-    echo "❌ Code Server supervisor config missing"
-fi
-
 if [ -f "supervisor/conf.d/sshd.conf" ]; then
     echo "✅ SSH supervisor config found"
 else
@@ -116,19 +110,17 @@ echo "------------------------------------------"
 
 # Check if SSH is running on host
 if systemctl is-active --quiet ssh; then
-    echo "⚠️  Host SSH service is running on port 22"
-    echo "   → This may conflict with container SSH"
-    echo "   → See HOST-NETWORK-SETUP.md for solutions"
+    echo "✅ Host SSH service (port 22) won't conflict with container SSH (port 2222)"
 else
-    echo "✅ No SSH conflict detected"
+    echo "✅ No host SSH service running"
 fi
 
-# Check if anything is listening on 8443
+# Check if anything is listening on 8443 (formerly code-server port)
 if netstat -tuln 2>/dev/null | grep -q ":8443 "; then
     echo "⚠️  Something is already listening on port 8443"
-    echo "   → Code Server may not start properly"
+    echo "   → This port was previously used by code-server"
 else
-    echo "✅ Port 8443 is available"
+    echo "✅ Port 8443 is available (code-server removed)"
 fi
 
 # Check Docker installation
@@ -181,7 +173,6 @@ echo "🚀 Ready to Start:"
 echo "  docker compose up -d --build"
 echo
 echo "🌐 Access Points (after start):"
-echo "  • Code Server: http://localhost:8443"
 echo "  • SSH Access:  ssh ubuntu@localhost"
 echo "  • Remote:      ssh ubuntu@<host-ip>"
 echo
