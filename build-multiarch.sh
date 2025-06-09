@@ -184,18 +184,20 @@ fi
 # Build command
 if [[ "$PLATFORM" == *","* ]]; then
     # Multi-platform build with buildx
-    BUILD_CMD="docker buildx build"
-    BUILD_CMD="$BUILD_CMD --platform $PLATFORM"
-    BUILD_CMD="$BUILD_CMD --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID"
-    BUILD_CMD="$BUILD_CMD -t $IMAGE_NAME"
     if [ "$PUSH" = true ]; then
+        # Build and push multi-platform manifest
+        BUILD_CMD="docker buildx build"
+        BUILD_CMD="$BUILD_CMD --platform $PLATFORM"
+        BUILD_CMD="$BUILD_CMD --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID"
+        BUILD_CMD="$BUILD_CMD -t $IMAGE_NAME"
         BUILD_CMD="$BUILD_CMD --push"
+        BUILD_CMD="$BUILD_CMD ."
     else
-        BUILD_CMD="$BUILD_CMD --load"
-        print_warning "Multi-platform images cannot be loaded to local Docker"
-        print_warning "Use --push to push to a registry, or build single platform"
+        # Build each platform separately for local use
+        print_info "Building each platform separately for local Docker"
+        BUILD_PLATFORMS=(${PLATFORM//,/ })
+        MULTI_PLATFORM_BUILD=true
     fi
-    BUILD_CMD="$BUILD_CMD ."
 else
     # Single platform build
     BUILD_CMD="docker build"
@@ -206,7 +208,14 @@ else
 fi
 
 print_info "Build command:"
-echo "  $BUILD_CMD"
+if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
+    echo "  Building multiple platforms separately:"
+    for platform in "${BUILD_PLATFORMS[@]}"; do
+        echo "    docker buildx build --platform $platform --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID -t ${IMAGE_NAME%:*}:${TAG}-${platform//\//-} --load ."
+    done
+else
+    echo "  $BUILD_CMD"
+fi
 echo
 
 if [ "$DRY_RUN" = true ]; then
@@ -216,11 +225,33 @@ fi
 
 # Execute build
 print_info "Starting build..."
-if eval "$BUILD_CMD"; then
-    print_success "Build completed successfully!"
+if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
+    # Build each platform separately
+    for platform in "${BUILD_PLATFORMS[@]}"; do
+        platform_tag="${IMAGE_NAME%:*}:${TAG}-${platform//\//-}"
+        print_info "Building for platform: $platform"
+        build_cmd="docker buildx build --platform $platform --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID -t $platform_tag --load ."
+        if eval "$build_cmd"; then
+            print_success "Build completed for $platform: $platform_tag"
+        else
+            print_error "Build failed for platform: $platform"
+            exit 1
+        fi
+    done
+    
+    # Create multi-arch manifest locally (optional)
+    print_info "Creating local multi-arch tags..."
+    docker tag "${IMAGE_NAME%:*}:${TAG}-linux-amd64" "$IMAGE_NAME"
+    print_success "Tagged AMD64 image as default: $IMAGE_NAME"
+    
 else
-    print_error "Build failed!"
-    exit 1
+    # Single build command
+    if eval "$BUILD_CMD"; then
+        print_success "Build completed successfully!"
+    else
+        print_error "Build failed!"
+        exit 1
+    fi
 fi
 
 # Push single-platform image if requested and not already pushed
@@ -239,8 +270,13 @@ print_success "All operations completed successfully!"
 # Show usage instructions
 echo
 print_info "Usage instructions:"
-if [[ "$PLATFORM" == *","* ]]; then
-    echo "  Multi-platform image built. Use with:"
+if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
+    echo "  Multi-platform images built separately:"
+    echo "  docker run ${IMAGE_NAME%:*}:${TAG}-linux-amd64   # For AMD64"
+    echo "  docker run ${IMAGE_NAME%:*}:${TAG}-linux-arm64   # For ARM64"
+    echo "  docker run $IMAGE_NAME                           # Default (AMD64)"
+elif [[ "$PLATFORM" == *","* ]]; then
+    echo "  Multi-platform manifest pushed to registry:"
     echo "  docker run --platform linux/amd64 $IMAGE_NAME  # For AMD64"
     echo "  docker run --platform linux/arm64 $IMAGE_NAME  # For ARM64"
 else

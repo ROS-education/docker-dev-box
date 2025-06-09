@@ -423,6 +423,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     echo "HISTFILESIZE=20000" >> /etc/bash.bashrc && \
     echo "PROMPT_COMMAND='history -a'" >> /etc/bash.bashrc && \
     echo "shopt -s histappend" >> /etc/bash.bashrc && \
+    # Configure bash completion specifically for ubuntu user
+    echo "# Enable bash completion" >> /home/ubuntu/.bashrc && \
+    echo "if ! shopt -oq posix; then" >> /home/ubuntu/.bashrc && \
+    echo "  if [ -f /usr/share/bash-completion/bash_completion ]; then" >> /home/ubuntu/.bashrc && \
+    echo "    . /usr/share/bash-completion/bash_completion" >> /home/ubuntu/.bashrc && \
+    echo "  elif [ -f /etc/bash_completion ]; then" >> /home/ubuntu/.bashrc && \
+    echo "    . /etc/bash_completion" >> /home/ubuntu/.bashrc && \
+    echo "  fi" >> /home/ubuntu/.bashrc && \
+    echo "fi" >> /home/ubuntu/.bashrc && \
     rm -rf /var/lib/apt/lists/*
 
 # Run supervisord using the main configuration file
