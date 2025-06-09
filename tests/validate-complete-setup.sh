@@ -76,7 +76,7 @@ echo
 echo "📚 Checking Documentation..."
 echo "---------------------------"
 
-docs=("README.md" "HOST-NETWORK-SETUP.md" "REMOTE-SETUP.md" "SSH-SETUP.md")
+docs=("README.md" "docs/HOST-NETWORK-SETUP.md" "docs/REMOTE-SETUP.md" "docs/SSH-SETUP.md")
 for doc in "${docs[@]}"; do
     if [ -f "$doc" ]; then
         echo "✅ $doc"
@@ -115,12 +115,11 @@ else
     echo "✅ No host SSH service running"
 fi
 
-# Check if anything is listening on 8443 (formerly code-server port)
-if netstat -tuln 2>/dev/null | grep -q ":8443 "; then
-    echo "⚠️  Something is already listening on port 8443"
-    echo "   → This port was previously used by code-server"
+# Check if SSH is listening on the correct port (2222)
+if netstat -tuln 2>/dev/null | grep -q ":2222 "; then
+    echo "✅ SSH service running on port 2222"
 else
-    echo "✅ Port 8443 is available (code-server removed)"
+    echo "❌ SSH service not detected on port 2222"
 fi
 
 # Check Docker installation
@@ -182,9 +181,9 @@ echo "  • Test USB:     docker exec -it dev_box /workspace/test-usb-access.sh"
 echo "  • Test conda:   docker exec -it dev_box /workspace/test-conda-setup.sh"
 echo
 echo "📖 Documentation:"
-echo "  • See HOST-NETWORK-SETUP.md for network configuration details"
-echo "  • See REMOTE-SETUP.md for remote development setup"
-echo "  • See SSH-SETUP.md for SSH key configuration"
+echo "  • See docs/HOST-NETWORK-SETUP.md for network configuration details"
+echo "  • See docs/REMOTE-SETUP.md for remote development setup"
+echo "  • See docs/SSH-SETUP.md for SSH key configuration"
 echo
 echo "⚠️  Security Reminders:"
 echo "  • Change default password (ubuntu:ubuntu)"

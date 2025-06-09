@@ -100,8 +100,8 @@ services:
       - "com.example.security=capability-based"
 
     healthcheck:
-      # Test command for code-server health
-      test: ["CMD", "curl", "-fk", "http://localhost:8443/healthz"]
+      # Test command for SSH health
+      test: ["CMD", "nc", "-z", "localhost", "2222"]
       interval: 30s
       timeout: 10s
       retries: 3

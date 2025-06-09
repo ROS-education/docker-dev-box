@@ -99,7 +99,7 @@ docker compose down && docker compose up -d --build
 - `HOST-NETWORK-SETUP.md` - Network configuration details
 - `REMOTE-SETUP.md` - Remote development setup
 - `SSH-SETUP.md` - SSH key configuration
-- `README.md` - Complete documentation
+- `../README.md` - Complete documentation
 
 ## 🎯 Your Dev Environment Capabilities
 

@@ -101,7 +101,7 @@ echo
 print_info "Testing Documentation"
 echo "--------------------"
 
-DOC_FILES=("ARM64-SUPPORT.md" "ARM64-QUICKSTART.md")
+DOC_FILES=("../docs/ARM64-SUPPORT.md" "../docs/ARM64-QUICKSTART.md")
 for doc in "${DOC_FILES[@]}"; do
     if [ -f "$doc" ]; then
         print_success "$doc found"
@@ -241,7 +241,7 @@ echo "  • Build for both: ./build-multiarch.sh --platform all"
 
 echo
 echo "📖 Documentation:"
-echo "  • ARM64-SUPPORT.md - Complete technical guide"
+echo "  • docs/ARM64-SUPPORT.md - Complete technical guide"
 echo "  • ARM64-QUICKSTART.md - Quick setup instructions"
 echo "  • README.md - Updated with ARM64 information"
 

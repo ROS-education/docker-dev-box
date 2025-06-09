@@ -78,9 +78,9 @@ The environment includes:
 
 ## 📖 Documentation
 
-- **[REMOTE-SETUP.md](REMOTE-SETUP.md)** - Detailed remote setup guide
-- **[ACCESS-METHODS.md](ACCESS-METHODS.md)** - All access methods comparison
-- **[SSH-SETUP.md](SSH-SETUP.md)** - SSH configuration and troubleshooting
+- **[REMOTE-SETUP.md](./REMOTE-SETUP.md)** - Detailed remote setup guide
+- **[ACCESS-METHODS.md](./ACCESS-METHODS.md)** - All access methods comparison
+- **[SSH-SETUP.md](./SSH-SETUP.md)** - SSH configuration and troubleshooting
 ## 🎉 Complete Workflow Example
 
 ```bash

@@ -89,8 +89,8 @@ configure_firewall() {
             print_status "UFW is active, configuring ports..."
             
             # Allow necessary ports
-            # Remove old code-server port (no longer needed)
-            # sudo ufw allow 8443/tcp comment "Code-Server HTTPS"
+            # Configure SSH port for container (port 2222)
+            sudo ufw allow 2222/tcp comment "Container SSH"
             sudo ufw allow 2222/tcp comment "Docker SSH Container"
             
             print_status "Firewall configured for port 2222 (SSH)"
@@ -215,7 +215,7 @@ show_access_info() {
     echo
     echo -e "${YELLOW}Security Note:${NC}"
     echo "  Change the default password: docker exec $CONTAINER_NAME passwd ubuntu"
-    echo "  See REMOTE-SETUP.md for production security guidelines"
+    echo "  See docs/REMOTE-SETUP.md for production security guidelines"
 }
 
 show_help() {

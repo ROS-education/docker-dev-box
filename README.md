@@ -39,7 +39,7 @@ This container is configured to use **host networking** by default, providing di
 - **No port mapping needed**: Services bind to host ports directly
 - **Better performance**: No network translation overhead
 
-⚠️ **Important**: If your host already runs SSH on port 22, you may need to configure port conflicts. See [HOST-NETWORK-SETUP.md](./HOST-NETWORK-SETUP.md) for detailed configuration options and troubleshooting.
+⚠️ **Important**: If your host already runs SSH on port 22, you may need to configure port conflicts. See [docs/HOST-NETWORK-SETUP.md](./docs/HOST-NETWORK-SETUP.md) for detailed configuration options and troubleshooting.
 
 ## ▶️ Usage (Running with Docker Compose)
 
@@ -148,8 +148,8 @@ docker compose build
 docker compose up -d
 ```
 
-📖 **For detailed ARM64 support information, see [ARM64-SUPPORT.md](./ARM64-SUPPORT.md)**
-📖 **For ARM64 quick start, see [ARM64-QUICKSTART.md](./ARM64-QUICKSTART.md)**
+📖 **For detailed ARM64 support information, see [docs/ARM64-SUPPORT.md](./docs/ARM64-SUPPORT.md)**
+📖 **For ARM64 quick start, see [docs/ARM64-QUICKSTART.md](./docs/ARM64-QUICKSTART.md)**
 
 ## 🔧 Configuration
 
@@ -204,7 +204,7 @@ For production deployments:
 - Configure firewall rules
 - Use reverse proxy with SSL
 
-📖 **For detailed remote setup instructions, see [REMOTE-SETUP.md](REMOTE-SETUP.md)**
+📖 **For detailed remote setup instructions, see [docs/REMOTE-SETUP.md](./docs/REMOTE-SETUP.md)**
 
 ## 🤝 Contributing
 
@@ -244,4 +244,33 @@ if [ -z "$ARCH" ]; then
 fi
 echo "Environment variables are valid."
 ```
+
+## 📁 Project Structure
+
+This project is organized into the following directories:
+
+* **`/`** - Root directory with main configuration files:
+  * `Dockerfile` - Main Docker image definition
+  * `docker-compose.yaml` - Main compose configuration
+  * `README.md` - This documentation file
+  * `setup-remote-pc.sh` - Script for remote PC setup
+
+* **`/docs/`** - Documentation files:
+  * Architecture guides
+  * Setup instructions
+  * Configuration references
+  * Comparison documents
+
+* **`/scripts/`** - Utility scripts:
+  * `build-multiarch.sh` - Multi-architecture image builder
+  * `tag-multiarch-images.sh` - Script for tagging images
+  * Other maintenance scripts
+
+* **`/supervisor/`** - Supervisor configuration:
+  * `supervisord.conf` - Main supervisor configuration
+  * `/conf.d/` - Service-specific configurations
+
+* **`/tests/`** - Test and validation scripts:
+  * `test-*.sh` - Various test scripts
+  * `validate-*.sh` - System validation scripts
 
