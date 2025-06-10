@@ -19,6 +19,7 @@ This directory contains detailed documentation for the docker-dev-box project.
 - **CAPABILITIES-SETUP.md**: Using Linux capabilities instead of privileged mode
 - **SSH-SETUP.md**: SSH configuration details
 - **REMOTE-SETUP.md**: Setting up for remote development
+- **TROUBLESHOOTING.md**: Common issues and solutions
 
 ## Comparison and Analysis
 

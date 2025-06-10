@@ -23,7 +23,7 @@ A Dockerized development environment based on Ubuntu Noble, providing a complete
 *   **Process Management:** Uses `supervisor` to manage SSH and other services reliably.
 *   **Non-root User:** Runs development tasks as a standard user (`ubuntu`, UID/GID 1000) with passwordless `sudo` access.
 *   **Persistent Storage:** Uses Docker volumes to persist user configuration and project files between container runs.
-*   **SSH Access:** Secure SSH server running on port 22 with both password and key-based authentication.
+*   **SSH Access:** Secure SSH server running on port 2222 with both password and key-based authentication.
 
 ## ⚙️ Prerequisites
 
@@ -35,11 +35,11 @@ A Dockerized development environment based on Ubuntu Noble, providing a complete
 
 This container is configured to use **host networking** by default, providing direct access to the host's network stack. This means:
 
-- **SSH Server**: Available directly on host port 22
+- **SSH Server**: Available directly on host port 2222
 - **No port mapping needed**: Services bind to host ports directly
 - **Better performance**: No network translation overhead
 
-⚠️ **Important**: If your host already runs SSH on port 22, you may need to configure port conflicts. See [docs/HOST-NETWORK-SETUP.md](./docs/HOST-NETWORK-SETUP.md) for detailed configuration options and troubleshooting.
+⚠️ **Important**: The container SSH runs on port 2222 to avoid conflicts with host SSH. See [docs/HOST-NETWORK-SETUP.md](./docs/HOST-NETWORK-SETUP.md) for detailed configuration options and troubleshooting.
 
 ## ▶️ Usage (Running with Docker Compose)
 
@@ -121,6 +121,25 @@ This project includes a `docker-compose.yaml` file for easier management of the 
     docker-compose logs -f dev-box
     ```
     (Press `Ctrl+C` to stop following logs).
+
+## 🚀 Quick Start
+
+For the fastest setup experience, use the quick setup script:
+
+```bash
+git clone <repository-url>
+cd docker-dev-box
+./quick-setup.sh
+```
+
+The quick setup script will:
+- Check prerequisites (Docker, Docker Compose)
+- Auto-detect your system architecture
+- Create environment configuration
+- Give you options to build or use pre-built images
+- Start the development environment
+
+For manual setup, continue reading below.
 
 ## 🏗️ **Building & Architecture Support**
 
