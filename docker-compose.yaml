@@ -3,7 +3,7 @@ version: '3.8'
 services:
   dev-box:
     # Use local build with DNS fixes
-    image: wn1980/dev-box:arm64
+    image: wn1980/dev-box:${ARCH}
     # build:
     #   context: .
     #   dockerfile: Dockerfile
