@@ -1,0 +1,125 @@
+# Docker-in-Docker with Full Device Access Configuration
+# This configuration provides maximum device access for development and testing
+
+version: '3.8'
+
+services:
+  dev-box-full-access:
+    image: wn1980/dev-box:${ARCH:-amd64}
+    container_name: dev_box_full_access
+    privileged: true
+    network_mode: host
+    pid: host
+    ipc: host
+    user: root
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    environment:
+      - TZ=${TZ:-UTC}
+      - COMPOSE_BAKE=true
+      - HOST_DOCKER_GID=${HOST_DOCKER_GID:-988}
+    volumes:
+      # Configuration and workspace
+      - config:/home/ubuntu/.config
+      - conda:/home/ubuntu/.conda
+      - Codespaces:/workspace
+      
+      # Docker socket (read-write for Docker-in-Docker)
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # Complete device access
+      - /dev:/dev
+      
+      # System information and control
+      - /sys:/sys
+      - /proc:/proc
+      - /sys/fs/cgroup:/sys/fs/cgroup
+      - /run/systemd:/run/systemd
+      - /run/udev:/run/udev:ro
+      - /lib/modules:/lib/modules:ro
+      
+      # Boot and firmware access (optional)
+      - /boot:/boot:ro
+      - /sys/firmware:/sys/firmware:ro
+      
+    # Explicit device mappings for critical devices
+    devices:
+      # Primary storage devices
+      - /dev/sda:/dev/sda
+      - /dev/sda1:/dev/sda1
+      - /dev/sda2:/dev/sda2
+      - /dev/sda3:/dev/sda3
+      - /dev/sda4:/dev/sda4
+      - /dev/sda5:/dev/sda5
+      - /dev/sda6:/dev/sda6
+      - /dev/sda7:/dev/sda7
+      - /dev/sda8:/dev/sda8
+      
+      # Additional SATA devices
+      - /dev/sdb:/dev/sdb
+      - /dev/sdc:/dev/sdc
+      - /dev/sdd:/dev/sdd
+      - /dev/sde:/dev/sde
+      
+      # NVMe devices
+      - /dev/nvme0n1:/dev/nvme0n1
+      - /dev/nvme0n1p1:/dev/nvme0n1p1
+      - /dev/nvme0n1p2:/dev/nvme0n1p2
+      - /dev/nvme0n1p3:/dev/nvme0n1p3
+      - /dev/nvme1n1:/dev/nvme1n1
+      - /dev/nvme1n1p1:/dev/nvme1n1p1
+      - /dev/nvme2n1:/dev/nvme2n1
+      
+      # Loop devices
+      - /dev/loop0:/dev/loop0
+      - /dev/loop1:/dev/loop1
+      - /dev/loop2:/dev/loop2
+      - /dev/loop3:/dev/loop3
+      - /dev/loop4:/dev/loop4
+      - /dev/loop5:/dev/loop5
+      - /dev/loop6:/dev/loop6
+      - /dev/loop7:/dev/loop7
+      
+      # Virtual devices
+      - /dev/null:/dev/null
+      - /dev/zero:/dev/zero
+      - /dev/random:/dev/random
+      - /dev/urandom:/dev/urandom
+      
+      # TTY and console devices
+      - /dev/tty:/dev/tty
+      - /dev/console:/dev/console
+      
+      # USB devices (if needed)
+      - /dev/bus/usb:/dev/bus/usb
+      
+    # Maximum capabilities
+    cap_add:
+      - ALL
+      
+    # Disable security restrictions
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+      
+    # Additional sysctls for system control
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+      
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "sshd"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  config:
+  conda:
+  Codespaces:
+    external: true
