@@ -5,7 +5,7 @@
 # - dev-box:latest-linux-amd64 -> wn1980/dev-box:amd64
 # - dev-box:latest-linux-arm64 -> wn1980/dev-box:arm64
 
-set -e
+# Note: Removed 'set -e' to handle errors gracefully in the script
 
 # Colors for output
 RED='\033[0;31m'
@@ -48,23 +48,54 @@ check_image_exists() {
     fi
 }
 
-# Function to tag image
+# Function to tag image with better error handling
 tag_image() {
     local source_tag="$1"
     local target_tag="$2"
     
+    print_info "Checking source image: $source_tag"
+    
+    if ! check_image_exists "$source_tag"; then
+        print_error "Source image not found: $source_tag"
+        print_info "Available dev-box images:"
+        docker images | grep dev-box || echo "  No dev-box images found"
+        return 1
+    fi
+    
     print_info "Tagging $source_tag -> $target_tag"
     
-    if check_image_exists "$source_tag"; then
-        if docker tag "$source_tag" "$target_tag"; then
-            print_success "Successfully tagged: $target_tag"
-            return 0
-        else
-            print_error "Failed to tag: $source_tag -> $target_tag"
-            return 1
-        fi
+    if docker tag "$source_tag" "$target_tag"; then
+        print_success "Successfully tagged: $target_tag"
+        return 0
     else
-        print_error "Source image not found: $source_tag"
+        print_error "Failed to tag: $source_tag -> $target_tag"
+        return 1
+    fi
+}
+
+# Function to validate final tagging results
+validate_tagging() {
+    local -a EXPECTED_TAGS=("wn1980/dev-box:amd64" "wn1980/dev-box:arm64")
+    local validation_success=true
+    
+    print_info "Validating tagged images..."
+    
+    for tag in "${EXPECTED_TAGS[@]}"; do
+        if check_image_exists "$tag"; then
+            local arch=$(docker image inspect "$tag" --format='{{.Architecture}}')
+            local size=$(docker image inspect "$tag" --format='{{.Size}}' | numfmt --to=iec)
+            print_success "✓ $tag (arch: $arch, size: $size)"
+        else
+            print_error "✗ $tag - Image not found"
+            validation_success=false
+        fi
+    done
+    
+    if [ "$validation_success" = true ]; then
+        print_success "All tagged images validated successfully!"
+        return 0
+    else
+        print_error "Some tagged images failed validation"
         return 1
     fi
 }
@@ -108,6 +139,11 @@ main() {
     
     if [ $success_count -eq $total_count ]; then
         print_success "All images tagged successfully!"
+        
+        # Validate the tagged images
+        echo
+        validate_tagging
+        echo
         
         print_info "New wn1980/dev-box images:"
         docker images | grep "wn1980/dev-box" || print_warning "No wn1980/dev-box images found"
