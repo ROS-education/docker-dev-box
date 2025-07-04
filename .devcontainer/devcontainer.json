@@ -1,5 +1,5 @@
 {
-    "name": "Docker Development Box",
+    "name": "DevBox",
     "dockerComposeFile": "../docker-compose.yaml",
     "service": "dev-box",
     "workspaceFolder": "/workspace",

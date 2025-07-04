@@ -1,0 +1,29 @@
+version: '3.8'
+
+volumes:
+  mongodb_data:
+    external: true
+
+services:
+  mongodb:
+    image: mongo
+    container_name: dev_box_mongodb
+    restart: unless-stopped
+    #init: true
+    #network_mode: bridge
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - mongodb_data:/data/db
+    # environment:
+    #   MONGO_INITDB_ROOT_USERNAME: root
+    #   MONGO_INITDB_ROOT_PASSWORD: 123456
+    #   MONGO_INITDB_DATABASE: example
+    #   MONGO_INITDB_USERNAME: admin
+    #   MONGO_INITDB_PASSWORD: 123456
+    ports:
+      - 27017:27017
