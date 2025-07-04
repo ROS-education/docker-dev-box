@@ -306,12 +306,12 @@ WORKDIR /workspace
 # Switch back to root user before CMD to start supervisord as root
 USER root
 
-# Copy local supervisor directory structure
-# IMPORTANT: Ensure supervisor/supervisord.conf DOES NOT try to start dockerd
-COPY supervisor /opt/supervisor
-RUN chown -R ubuntu:ubuntu /opt/supervisor
+# Copy local app directory structure (formerly supervisor)
+# IMPORTANT: Ensure app/supervisord.conf DOES NOT try to start dockerd
+COPY app /app
+RUN chown -R ubuntu:ubuntu /app
 
-VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.conda","/home/ubuntu/.n8n"]
+VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.conda"]
 EXPOSE 2222
 
 # --- IMPORTANT NOTES FOR SHARING HOST DOCKER DAEMON, USB DEVICES, AND HOST NETWORK ---
@@ -342,7 +342,7 @@ EXPOSE 2222
 #    granting the 'ubuntu' user permission to use the mounted socket. If the GID inside
 #    doesn't match the GID owning the socket on the host, you'll get permission errors.
 #
-# 5. Supervisor Configuration: Ensure your supervisor/supervisord.conf file
+# 5. Supervisor Configuration: Ensure your app/supervisord.conf file
 #    DOES NOT contain a [program:dockerd] section. Supervisor should only manage
 #    SSH and any other desired services within the container.
 #
@@ -368,7 +368,7 @@ EXPOSE 2222
 #    granting the 'ubuntu' user permission to use the mounted socket. If the GID inside
 #    doesn't match the GID owning the socket on the host, you'll get permission errors.
 #
-# 4. Supervisor Configuration: Ensure your supervisor/supervisord.conf file
+# 4. Supervisor Configuration: Ensure your app/supervisord.conf file
 #    DOES NOT contain a [program:dockerd] section. Supervisor should only manage
 #    SSH and any other desired services within the container.
 #
@@ -402,4 +402,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Run supervisord using the main configuration file
 # Supervisor should now only manage SSH and any other non-docker services
-CMD ["/usr/bin/supervisord", "-c", "/opt/supervisor/supervisord.conf"]
+CMD ["/usr/bin/supervisord", "-c", "/app/supervisord.conf"]

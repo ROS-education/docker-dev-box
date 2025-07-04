@@ -47,7 +47,7 @@ This project includes a `docker-compose.yaml` file for easier management of the 
 
 1.  **Prerequisites:**
     *   Ensure you have `docker` and `docker-compose` (or the `docker compose` plugin) installed.
-    *   Make sure the `Dockerfile`, the `supervisor` directory, and the `docker-compose.yaml` file are in the same directory.
+    *   Make sure the `Dockerfile`, the `app` directory, and the `docker-compose.yaml` file are in the same directory.
 
 2.  **Build and Start the Container:**
     Open your terminal in the directory containing the `docker-compose.yaml` file and run:
@@ -172,9 +172,9 @@ docker compose up -d
 
 ## 🔧 Configuration
 
-*   **Supervisor:** Process management is handled by Supervisor. Configuration files are located in the `supervisor/` directory within this repository and copied to `/opt/supervisor` inside the container.
-    *   `supervisor/supervisord.conf`: Main supervisor configuration.
-    *   `supervisor/conf.d/sshd.conf`: Configuration for running the SSH server process.
+*   **Supervisor:** Process management is handled by Supervisor. Configuration files are located in the `app/` directory within this repository and copied to `/app` inside the container.
+    *   `app/supervisord.conf`: Main supervisor configuration.
+    *   `app/conf.d/sshd.conf`: Configuration for running the SSH server process.
 *   **SSH Server:** SSH configuration is handled via standard `/etc/ssh/sshd_config` with enhancements for remote development.
 *   **Conda:** The `dev_env` environment is activated by default for the `ubuntu` user's bash sessions via `.bashrc`. You can manage packages using `conda install`, `conda remove`, etc., within SSH terminals.
 
@@ -268,28 +268,104 @@ echo "Environment variables are valid."
 
 This project is organized into the following directories:
 
-* **`/`** - Root directory with main configuration files:
-  * `Dockerfile` - Main Docker image definition
-  * `docker-compose.yaml` - Main compose configuration
-  * `README.md` - This documentation file
-  * `setup-remote-pc.sh` - Script for remote PC setup
+### 🏠 Root Directory
+* **`Dockerfile`** - Main Docker image definition
+* **`docker-compose.yaml`** - Main compose configuration  
+* **`quick-setup.sh`** - One-command setup script for new users
+* **`setup-remote-pc.sh`** - Script for remote PC setup
+* **`detect-and-map-devices.sh`** - Auto-detects storage devices and generates device mappings
+* **`fix-docker-dns.sh`** - Fixes DNS issues in Docker containers
+* **`setup-docker-in-docker.sh`** - Sets up Docker socket permissions for Docker-in-Docker
+* **`.env.example`** - Environment configuration template
 
-* **`/docs/`** - Documentation files:
-  * Architecture guides
-  * Setup instructions
-  * Configuration references
-  * Comparison documents
+### 📚 Documentation (`/docs/`)
+Comprehensive documentation organized by topic:
 
-* **`/scripts/`** - Utility scripts:
-  * `build-multiarch.sh` - Multi-architecture image builder
-  * `tag-multiarch-images.sh` - Script for tagging images
-  * Other maintenance scripts
+**Getting Started:**
+- **QUICK-START.md** - Quick start guide for using the development environment
+- **ACCESS-METHODS.md** - Different ways to access the development environment
 
-* **`/supervisor/`** - Supervisor configuration:
-  * `supervisord.conf` - Main supervisor configuration
-  * `/conf.d/` - Service-specific configurations
+**Architecture Support:**
+- **ARM64-SUPPORT.md** - Detailed information about ARM64 architecture support
+- **ARM64-QUICKSTART.md** - Quick start guide for ARM64 users
+- **ARM64-IMPLEMENTATION-SUMMARY.md** - Implementation details for ARM64 support
 
-* **`/tests/`** - Test and validation scripts:
-  * `test-*.sh` - Various test scripts
-  * `validate-*.sh` - System validation scripts
+**Configuration Guides:**
+- **HOST-NETWORK-SETUP.md** - Guide for configuring host networking
+- **CAPABILITIES-SETUP.md** - Using Linux capabilities instead of privileged mode
+- **SSH-SETUP.md** - SSH configuration details
+- **REMOTE-SETUP.md** - Setting up for remote development
+- **TROUBLESHOOTING.md** - Common issues and solutions
+
+**Comparison and Analysis:**
+- **PRIVILEGED-vs-CAPABILITIES.md** - Comparison between privileged mode and capabilities
+- **REMOTE-SSH-VS-DEVCONTAINER-COMPARISON.md** - Comparison between Remote SSH and DevContainer approaches
+- **REMOTE-WORKFLOW.md** - Workflows for remote development
+- **HOST-SYSTEM-CONTROL.md** - Information about host system control capabilities
+- **SYSTEM-CONTROL-TEST-RESULTS.md** - Test results for system control features
+
+### 🔧 Utility Scripts (`/scripts/`)
+Build, deployment, and management utilities:
+
+**Build Scripts:**
+- **build-multiarch.sh** - Builds multi-architecture Docker images (AMD64 and ARM64)
+- **build-arm64-complete.sh** - Complete ARM64-specific build script with enhanced compatibility
+- **tag-multiarch-images.sh** - Tags built images with appropriate architecture tags
+- **push-multiarch-images.sh** - Pushes multi-architecture images to registries
+
+**Remote Management:**
+- **manage-ssh-keys.sh** - Manages SSH keys for secure remote access
+- **transfer-to-remote.sh** - Transfers project files to remote systems
+
+**Usage Example:**
+```bash
+# Build for all architectures
+./scripts/build-multiarch.sh --platform all
+
+# Transfer project to remote system
+./scripts/transfer-to-remote.sh
+```
+
+### ⚙️ Application Configuration (`/app/`)
+Supervisor process management configuration:
+
+- **supervisord.conf** - Main supervisor configuration file
+- **conf.d/sshd.conf** - SSH daemon service configuration (port 2222)
+
+**Service Configuration:**
+The SSH daemon is configured to:
+- Listen on port 2222 (avoiding host SSH conflicts)
+- Accept both password and key-based authentication
+- Allow the default user (`ubuntu`) with password `ubuntu` (for development use only)
+
+**Security Note for Production:**
+- Change the default password
+- Configure SSH key-based authentication
+- Consider disabling password authentication
+
+### 🧪 Test & Validation (`/tests/`)
+Scripts for testing and validating the environment:
+
+**Test Scripts:**
+- **test-capabilities.sh** - Tests Linux capabilities configuration
+- **test-conda-setup.sh** - Validates Conda environment setup and dependencies
+- **test-host-network.sh** - Tests host networking configuration and access
+- **test-system-control.sh** - Tests system control capabilities
+- **test-usb-access.sh** - Tests USB device access from the container
+- **demo-system-control.sh** - Demonstrates system control capabilities safely
+- **test-device-access.sh** - Tests device access functionality
+- **test-device-mount-vs-mapping.sh** - Compares volume mount vs device mapping approaches
+
+**Validation Scripts:**
+- **validate-arm64-setup.sh** - Validates ARM64-specific configurations
+- **validate-complete-setup.sh** - Validates the complete setup including SSH, networking, etc.
+
+**Usage Example:**
+```bash
+# From host system
+./tests/test-host-network.sh
+
+# From within container
+docker exec -it dev_box /workspace/tests/test-host-network.sh
+```
 

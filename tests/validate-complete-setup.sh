@@ -65,7 +65,7 @@ echo
 echo "🔧 Checking Supervisor Configuration..."
 echo "-------------------------------------"
 
-if [ -f "supervisor/conf.d/sshd.conf" ]; then
+if [ -f "app/conf.d/sshd.conf" ]; then
     echo "✅ SSH supervisor config found"
 else
     echo "❌ SSH supervisor config missing"

@@ -318,7 +318,7 @@ docker-compose up -d
 
 ### Current Remote-SSH Setup
 - `docker-compose.yaml`: Container orchestration
-- `supervisor/conf.d/sshd.conf`: SSH server configuration
+- `app/conf.d/sshd.conf`: SSH server configuration
 - Dockerfile: SSH server installation and user setup
 
 ### Current Dev Container Setup

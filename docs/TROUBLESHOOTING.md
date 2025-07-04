@@ -265,7 +265,7 @@ docker exec dev_box sed -i 's/#LogLevel INFO/LogLevel DEBUG/' /etc/ssh/sshd_conf
 docker exec dev_box supervisorctl restart sshd
 
 # Enable supervisor debug logging
-docker exec dev_box sed -i 's/loglevel=info/loglevel=debug/' /opt/supervisor/supervisord.conf
+docker exec dev_box sed -i 's/loglevel=info/loglevel=debug/' /app/supervisord.conf
 docker compose restart
 ```
 

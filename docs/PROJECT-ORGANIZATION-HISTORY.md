@@ -8,7 +8,7 @@ This document summarizes all the improvements and fixes made to organize the doc
 - **Created `docs/`** - All documentation files moved here
 - **Created `scripts/`** - All utility scripts organized here  
 - **Created `tests/`** - All test and validation scripts moved here
-- **Enhanced `supervisor/`** - Added README for supervisor configuration
+- **Enhanced `app/`** - Added README for application configuration (renamed from supervisor)
 
 ### 2. 🧹 File Cleanup
 - Removed obsolete code-server related files
@@ -97,8 +97,8 @@ docker-dev-box/
 │   ├── test-host-network.sh
 │   └── ... (other tests)
 │
-└── 📁 supervisor/              # 🔧 Process management
-    ├── README.md               # Supervisor documentation
+└── 📁 app/                     # 🔧 Application configuration
+    ├── README.md               # Application documentation
     ├── supervisord.conf        # Main supervisor config
     └── conf.d/
         └── sshd.conf          # SSH service config (port 2222)
