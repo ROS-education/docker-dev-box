@@ -212,7 +212,9 @@ print_info "Build command:"
 if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
     echo "  Building multiple platforms separately:"
     for platform in "${BUILD_PLATFORMS[@]}"; do
-        echo "    docker buildx build --platform $platform --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID -t ${IMAGE_NAME%:*}:${TAG}-${platform//\//-} --load ."
+        # Extract architecture from platform (linux/amd64 -> amd64)
+        arch_name="${platform#*/}"
+        echo "    docker buildx build --platform $platform --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID -t ${IMAGE_NAME%:*}:${arch_name} --load ."
     done
 else
     echo "  $BUILD_CMD"
@@ -229,7 +231,9 @@ print_info "Starting build..."
 if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
     # Build each platform separately
     for platform in "${BUILD_PLATFORMS[@]}"; do
-        platform_tag="${IMAGE_NAME%:*}:${TAG}-${platform//\//-}"
+        # Extract architecture from platform (linux/amd64 -> amd64)
+        arch_name="${platform#*/}"
+        platform_tag="${IMAGE_NAME%:*}:${arch_name}"
         print_info "Building for platform: $platform"
         build_cmd="docker buildx build --platform $platform --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID -t $platform_tag --load ."
         if eval "$build_cmd"; then
@@ -242,7 +246,7 @@ if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
     
     # Create multi-arch manifest locally (optional)
     print_info "Creating local multi-arch tags..."
-    docker tag "${IMAGE_NAME%:*}:${TAG}-linux-amd64" "$IMAGE_NAME"
+    docker tag "${IMAGE_NAME%:*}:amd64" "$IMAGE_NAME"
     print_success "Tagged AMD64 image as default: $IMAGE_NAME"
     
 else
@@ -273,9 +277,9 @@ echo
 print_info "Usage instructions:"
 if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
     echo "  Multi-platform images built separately:"
-    echo "  docker run ${IMAGE_NAME%:*}:${TAG}-linux-amd64   # For AMD64"
-    echo "  docker run ${IMAGE_NAME%:*}:${TAG}-linux-arm64   # For ARM64"
-    echo "  docker run $IMAGE_NAME                           # Default (AMD64)"
+    echo "  docker run ${IMAGE_NAME%:*}:amd64               # For AMD64"
+    echo "  docker run ${IMAGE_NAME%:*}:arm64               # For ARM64"
+    echo "  docker run $IMAGE_NAME                          # Default (AMD64)"
 elif [[ "$PLATFORM" == *","* ]]; then
     echo "  Multi-platform manifest pushed to registry:"
     echo "  docker run --platform linux/amd64 $IMAGE_NAME  # For AMD64"
