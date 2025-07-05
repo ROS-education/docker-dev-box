@@ -306,10 +306,42 @@ WORKDIR /workspace
 # Switch back to root user before CMD to start supervisord as root
 USER root
 
+# Create Docker socket permission fix script
+RUN mkdir -p /var/run && \
+    echo '#!/bin/bash' > /usr/local/bin/fix-docker-socket.sh && \
+    echo '# Fix Docker socket permissions if mounted' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo 'if [ -S /var/run/docker.sock ]; then' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '    # Get the GID of the docker group in the container' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '    DOCKER_GID=$(getent group docker | cut -d: -f3)' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '    if [ -n "$DOCKER_GID" ]; then' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '        # Change ownership of docker socket to docker group' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '        chown root:docker /var/run/docker.sock' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '        chmod 660 /var/run/docker.sock' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '        echo "Fixed Docker socket permissions: $(ls -la /var/run/docker.sock)"' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '    else' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '        echo "Warning: docker group not found in container"' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '    fi' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo 'else' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '    echo "Docker socket not mounted at /var/run/docker.sock"' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo 'fi' >> /usr/local/bin/fix-docker-socket.sh && \
+    chmod +x /usr/local/bin/fix-docker-socket.sh
+
 # Copy local app directory structure (formerly supervisor)
 # IMPORTANT: Ensure app/supervisord.conf DOES NOT try to start dockerd
 COPY app /app
 RUN chown -R ubuntu:ubuntu /app
+
+# Ensure /var/run/docker.sock belongs to docker group when container starts
+# This is necessary for the ubuntu user to access the mounted docker socket
+RUN mkdir -p /var/run && \
+    # Create a startup script to fix docker socket permissions
+    echo '#!/bin/bash' > /usr/local/bin/fix-docker-socket.sh && \
+    echo 'if [ -S /var/run/docker.sock ]; then' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '    echo "Fixing docker socket permissions..."' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '    sudo chgrp docker /var/run/docker.sock' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo '    sudo chmod g+rw /var/run/docker.sock' >> /usr/local/bin/fix-docker-socket.sh && \
+    echo 'fi' >> /usr/local/bin/fix-docker-socket.sh && \
+    chmod +x /usr/local/bin/fix-docker-socket.sh
 
 VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.conda"]
 EXPOSE 2222
@@ -402,4 +434,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Run supervisord using the main configuration file
 # Supervisor should now only manage SSH and any other non-docker services
-CMD ["/usr/bin/supervisord", "-c", "/app/supervisord.conf"]
+CMD ["/bin/bash", "-c", "/usr/local/bin/fix-docker-socket.sh && /usr/bin/supervisord -c /app/supervisord.conf"]

@@ -65,7 +65,7 @@ show_help() {
 PLATFORM=""
 PUSH=false
 TAG="latest"
-REGISTRY=""
+REGISTRY="wn1980"
 DRY_RUN=false
 HOST_DOCKER_GID=$(getent group docker 2>/dev/null | cut -d: -f3 || echo 988)
 
@@ -139,7 +139,24 @@ if [ -n "$REGISTRY" ]; then
     if [[ "$REGISTRY" == */* ]]; then
         IMAGE_NAME="$REGISTRY:$TAG"
     else
-        IMAGE_NAME="$REGISTRY/dev-box:$TAG"
+        # Use architecture-specific tags for multi-platform builds
+        if [[ "$PLATFORM" == *","* ]]; then
+            # Multi-platform build - will create separate arch tags
+            IMAGE_NAME="$REGISTRY/dev-box"
+        else
+            # Single platform - determine arch-specific tag
+            case "$PLATFORM" in
+                "linux/amd64")
+                    IMAGE_NAME="$REGISTRY/dev-box:amd64"
+                    ;;
+                "linux/arm64")
+                    IMAGE_NAME="$REGISTRY/dev-box:arm64"
+                    ;;
+                *)
+                    IMAGE_NAME="$REGISTRY/dev-box:$TAG"
+                    ;;
+            esac
+        fi
     fi
 else
     IMAGE_NAME="dev-box:$TAG"
@@ -149,7 +166,12 @@ print_header
 
 print_info "Configuration:"
 echo "  Platform(s): $PLATFORM"
-echo "  Image name:  $IMAGE_NAME"
+if [[ "$PLATFORM" == *","* ]]; then
+    echo "  Image base:  $IMAGE_NAME"
+    echo "  Will create: ${IMAGE_NAME}:amd64 and ${IMAGE_NAME}:arm64"
+else
+    echo "  Image name:  $IMAGE_NAME"
+fi
 echo "  Push:        $PUSH"
 echo "  Docker GID:  $HOST_DOCKER_GID"
 echo "  Dry run:     $DRY_RUN"
@@ -186,16 +208,16 @@ fi
 if [[ "$PLATFORM" == *","* ]]; then
     # Multi-platform build with buildx
     if [ "$PUSH" = true ]; then
-        # Build and push multi-platform manifest
+        # Build and push multi-platform manifest with arch-specific tags
         BUILD_CMD="docker buildx build"
         BUILD_CMD="$BUILD_CMD --platform $PLATFORM"
         BUILD_CMD="$BUILD_CMD --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID"
-        BUILD_CMD="$BUILD_CMD -t $IMAGE_NAME"
+        BUILD_CMD="$BUILD_CMD -t ${IMAGE_NAME}:amd64 -t ${IMAGE_NAME}:arm64"
         BUILD_CMD="$BUILD_CMD --push"
         BUILD_CMD="$BUILD_CMD ."
     else
-        # Build each platform separately for local use
-        print_info "Building each platform separately for local Docker"
+        # Build each platform separately for local use with arch-specific tags
+        print_info "Building each platform separately for local Docker with arch-specific tags"
         BUILD_PLATFORMS=(${PLATFORM//,/ })
         MULTI_PLATFORM_BUILD=true
     fi
@@ -210,11 +232,11 @@ fi
 
 print_info "Build command:"
 if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
-    echo "  Building multiple platforms separately:"
+    echo "  Building multiple platforms separately with arch-specific tags:"
     for platform in "${BUILD_PLATFORMS[@]}"; do
         # Extract architecture from platform (linux/amd64 -> amd64)
         arch_name="${platform#*/}"
-        echo "    docker buildx build --platform $platform --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID -t ${IMAGE_NAME%:*}:${arch_name} --load ."
+        echo "    docker buildx build --platform $platform --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID -t ${IMAGE_NAME}:${arch_name} --load ."
     done
 else
     echo "  $BUILD_CMD"
@@ -229,11 +251,11 @@ fi
 # Execute build
 print_info "Starting build..."
 if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
-    # Build each platform separately
+    # Build each platform separately with arch-specific tags
     for platform in "${BUILD_PLATFORMS[@]}"; do
         # Extract architecture from platform (linux/amd64 -> amd64)
         arch_name="${platform#*/}"
-        platform_tag="${IMAGE_NAME%:*}:${arch_name}"
+        platform_tag="${IMAGE_NAME}:${arch_name}"
         print_info "Building for platform: $platform"
         build_cmd="docker buildx build --platform $platform --build-arg HOST_DOCKER_GID=$HOST_DOCKER_GID -t $platform_tag --load ."
         if eval "$build_cmd"; then
@@ -244,10 +266,10 @@ if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
         fi
     done
     
-    # Create multi-arch manifest locally (optional)
-    print_info "Creating local multi-arch tags..."
-    docker tag "${IMAGE_NAME%:*}:amd64" "$IMAGE_NAME"
-    print_success "Tagged AMD64 image as default: $IMAGE_NAME"
+    # Create additional tags if needed
+    print_info "Images created with arch-specific tags:"
+    print_success "AMD64: ${IMAGE_NAME}:amd64"
+    print_success "ARM64: ${IMAGE_NAME}:arm64"
     
 else
     # Single build command
@@ -259,14 +281,31 @@ else
     fi
 fi
 
-# Push single-platform image if requested and not already pushed
-if [ "$PUSH" = true ] && [[ "$PLATFORM" != *","* ]]; then
-    print_info "Pushing image to registry..."
-    if docker push "$IMAGE_NAME"; then
-        print_success "Image pushed successfully!"
-    else
-        print_error "Push failed!"
-        exit 1
+# Push images if requested and not already pushed
+if [ "$PUSH" = true ]; then
+    if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
+        # Push both arch-specific images
+        print_info "Pushing arch-specific images to registry..."
+        for platform in "${BUILD_PLATFORMS[@]}"; do
+            arch_name="${platform#*/}"
+            platform_tag="${IMAGE_NAME}:${arch_name}"
+            print_info "Pushing $platform_tag..."
+            if docker push "$platform_tag"; then
+                print_success "Pushed $platform_tag successfully!"
+            else
+                print_error "Push failed for $platform_tag!"
+                exit 1
+            fi
+        done
+    elif [[ "$PLATFORM" != *","* ]]; then
+        # Push single-platform image
+        print_info "Pushing image to registry..."
+        if docker push "$IMAGE_NAME"; then
+            print_success "Image pushed successfully!"
+        else
+            print_error "Push failed!"
+            exit 1
+        fi
     fi
 fi
 
@@ -276,21 +315,36 @@ print_success "All operations completed successfully!"
 echo
 print_info "Usage instructions:"
 if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
-    echo "  Multi-platform images built separately:"
-    echo "  docker run ${IMAGE_NAME%:*}:amd64               # For AMD64"
-    echo "  docker run ${IMAGE_NAME%:*}:arm64               # For ARM64"
-    echo "  docker run $IMAGE_NAME                          # Default (AMD64)"
+    echo "  Multi-platform images built with arch-specific tags:"
+    echo "  docker run ${IMAGE_NAME}:amd64                     # For AMD64"
+    echo "  docker run ${IMAGE_NAME}:arm64                     # For ARM64"
 elif [[ "$PLATFORM" == *","* ]]; then
     echo "  Multi-platform manifest pushed to registry:"
-    echo "  docker run --platform linux/amd64 $IMAGE_NAME  # For AMD64"
-    echo "  docker run --platform linux/arm64 $IMAGE_NAME  # For ARM64"
+    echo "  docker run --platform linux/amd64 ${IMAGE_NAME}:amd64  # For AMD64"
+    echo "  docker run --platform linux/arm64 ${IMAGE_NAME}:arm64  # For ARM64"
 else
     echo "  Single-platform image built for: $PLATFORM"
-    echo "  docker run $IMAGE_NAME"
+    case "$PLATFORM" in
+        "linux/amd64")
+            echo "  docker run ${IMAGE_NAME}                           # AMD64 image"
+            ;;
+        "linux/arm64")
+            echo "  docker run ${IMAGE_NAME}                           # ARM64 image"
+            ;;
+        *)
+            echo "  docker run $IMAGE_NAME"
+            ;;
+    esac
 fi
 
-if [ "$PUSH" = false ] && [[ "$PLATFORM" != *","* ]]; then
+if [ "$PUSH" = false ]; then
     echo
-    print_info "Image available locally as: $IMAGE_NAME"
+    if [ -n "${MULTI_PLATFORM_BUILD:-}" ]; then
+        print_info "Images available locally as:"
+        echo "  ${IMAGE_NAME}:amd64"
+        echo "  ${IMAGE_NAME}:arm64"
+    else
+        print_info "Image available locally as: $IMAGE_NAME"
+    fi
     echo "  Use 'docker images' to see all built images"
 fi
