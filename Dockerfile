@@ -30,7 +30,7 @@ RUN for i in 1 2 3; do \
     done && \
     apt-get install -y --no-install-recommends \
     # Base requirement
-    ca-certificates \ 
+    ca-certificates \
     curl \
     gnupg \
     sudo \
@@ -39,8 +39,9 @@ RUN for i in 1 2 3; do \
     net-tools \
     supervisor \
     clangd \
-    wget \ 
+    wget \
     unzip \
+    bzip2 \
     openjdk-17-jre-headless \
     openssh-server \
     rsync \
@@ -77,15 +78,20 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     apt-get update && apt-get install -y --no-install-recommends gh && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Google Cloud CLI
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    apt-transport-https \
-    gnupg \
-    lsb-release && \
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-    apt-get update && apt-get install -y --no-install-recommends google-cloud-sdk && \
-    rm -rf /var/lib/apt/lists/*
+# Install Google Cloud CLI (skip on armhf/armv7)
+RUN ARCH=$(uname -m); \
+    if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
+            apt-transport-https \
+            gnupg \
+            lsb-release && \
+        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
+        apt-get update && apt-get install -y --no-install-recommends google-cloud-sdk && \
+        rm -rf /var/lib/apt/lists/*; \
+    else \
+        echo "Skipping Google Cloud CLI install: not supported on $ARCH"; \
+    fi
 
 # Set environment variable for Miniconda installation path
 ENV MINICONDA_PATH=/opt/miniconda
@@ -96,27 +102,26 @@ ENV PATH=$MINICONDA_PATH/bin:/home/ubuntu/.local/bin:$PATH
 RUN echo 'Defaults secure_path="/opt/miniconda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >> /etc/sudoers && \
     ln -s /opt/miniconda/bin/conda /usr/local/bin/conda
 
-# Install Miniconda - Enhanced multi-architecture support
-# Supports AMD64 (x86_64) and ARM64 (aarch64) architectures
-RUN \
+# Install Miniconda and dev tools - multi-arch logic
+RUN ARCH=$(uname -m); \
+if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
+    # Miniconda/conda-forge path (modern archs)
     # Determine the architecture suffix for the Miniconda filename
-    # Use TARGETARCH if available (from BuildKit), otherwise detect at runtime
     if [ -n "${TARGETARCH:-}" ]; then \
         echo "Using BuildKit TARGETARCH: ${TARGETARCH}"; \
         case ${TARGETARCH} in \
             amd64) MINICONDA_ARCH_SUFFIX="x86_64" ;; \
             arm64) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
-            arm/v7) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
+            arm|arm/v7|armhf) MINICONDA_ARCH_SUFFIX="armv7l" ;; \
             *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
         esac; \
     else \
-        # Fallback to runtime detection
         echo "TARGETARCH not set, using runtime architecture detection"; \
         RUNTIME_ARCH=$(uname -m); \
         case ${RUNTIME_ARCH} in \
             x86_64) MINICONDA_ARCH_SUFFIX="x86_64" ;; \
             aarch64) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
-            armv7l) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
+            armv7l|armhf) MINICONDA_ARCH_SUFFIX="armv7l" ;; \
             arm64) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
             *) echo "Unsupported runtime architecture: ${RUNTIME_ARCH}"; exit 1 ;; \
         esac; \
@@ -131,69 +136,95 @@ RUN \
     # Install Miniconda
     bash ~/miniconda.sh -b -p $MINICONDA_PATH && \
     rm ~/miniconda.sh && \
-    # Configure Conda
-    $MINICONDA_PATH/bin/conda config --system --set auto_activate_base false && \
-    $MINICONDA_PATH/bin/conda clean -afy && \
+    # Configure Conda (skip auto_activate_base and clean for armv7l/armhf)
+    ARCH=$(uname -m); \
+    if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
+        $MINICONDA_PATH/bin/conda config --system --set auto_activate_base false; \
+        $MINICONDA_PATH/bin/conda clean -afy; \
+    else \
+        echo "Skipping auto_activate_base config and conda clean for $ARCH (unsupported in old Miniconda)"; \
+    fi && \
     # Verify installation
-    $MINICONDA_PATH/bin/conda --version
-
-# Create Conda environment 'dev_env' with specified tools
-# Conda-forge generally has good multi-arch support (linux-64, linux-aarch64)
-RUN conda create -n dev_env -c conda-forge \
-    python=3.12 \
-    nodejs=22 \
-    cmake \
-    cxx-compiler \
-    make \
-    gdb \
-    -y && \
-    conda clean -afy
-
-# Activate the 'dev_env', install Firebase CLI globally using npm, and install ngrok  
-RUN bash -c "source /opt/miniconda/etc/profile.d/conda.sh && conda activate dev_env && npm install -g firebase-tools"
-
-# Install ngrok with enhanced multi-architecture support
-# Supports AMD64, ARM64, and legacy ARM architectures
-RUN /bin/bash -c 'set -e; \
-    # Determine architecture - prefer TARGETARCH from BuildKit, fallback to runtime detection
+    $MINICONDA_PATH/bin/conda --version && \
+    conda create -n dev_env -c conda-forge \
+        python=3.12 \
+        nodejs=22 \
+        cmake \
+        cxx-compiler \
+        make \
+        gdb \
+        -y && \
+    conda clean -afy && \
+    bash -c "source /opt/miniconda/etc/profile.d/conda.sh && conda activate dev_env && npm install -g firebase-tools" && \
+    /bin/bash -c 'set -e; \
+        if [ -n "${TARGETARCH:-}" ]; then \
+            echo "Using BuildKit TARGETARCH: ${TARGETARCH}"; \
+            case ${TARGETARCH} in \
+                amd64) NGROK_ZIP="ngrok-v3-stable-linux-amd64.zip" ;; \
+                arm64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
+                arm/v7|armhf) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
+                *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
+            esac; \
+        else \
+            ARCH=$(uname -m); \
+            echo "TARGETARCH not set, detected runtime architecture: $ARCH"; \
+            case $ARCH in \
+                x86_64) NGROK_ZIP="ngrok-v3-stable-linux-amd64.zip" ;; \
+                aarch64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
+                armv7l|armhf) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
+                arm64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
+                *) echo "Unsupported runtime architecture: $ARCH"; exit 1 ;; \
+            esac; \
+        fi; \
+        echo "Using ngrok package: $NGROK_ZIP"; \
+        curl --retry 5 --retry-delay 2 --retry-max-time 30 \
+             -O https://bin.equinox.io/c/bNyj1mQVY4c/${NGROK_ZIP}; \
+        # Verify download
+        [ -f ${NGROK_ZIP} ] && [ -s ${NGROK_ZIP} ] || (echo "ngrok download failed" && exit 1); \
+        unzip -o ${NGROK_ZIP}; \
+        chmod +x ngrok; \
+        mv ngrok /usr/local/bin/ngrok; \
+        rm ${NGROK_ZIP}; \
+        ngrok version' && \
+    ln -s /opt/miniconda/envs/dev_env/bin/node /usr/local/bin/node && \
+    ln -s /opt/miniconda/envs/dev_env/bin/npm /usr/local/bin/npm; \
+else \
+    # ARMHF/armv7l path: skip Miniconda, use system packages
+    echo "Skipping Miniconda/conda setup for $ARCH (unsupported on armv7l/armhf)"; \
+    apt-get update && apt-get install -y --no-install-recommends \
+        python3 \
+        python3-pip \
+        nodejs \
+        npm \
+        cmake \
+        g++ \
+        make \
+        gdb && \
+    npm install -g firebase-tools && \
+    # ngrok install (same logic as above)
+    ARCH=$(uname -m); \
     if [ -n "${TARGETARCH:-}" ]; then \
         echo "Using BuildKit TARGETARCH: ${TARGETARCH}"; \
         case ${TARGETARCH} in \
-            amd64) NGROK_ZIP="ngrok-v3-stable-linux-amd64.zip" ;; \
-            arm64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
-            arm/v7) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
-            arm/v6) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
+            arm|arm/v7|armhf) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
             *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
         esac; \
     else \
-        # Runtime architecture detection
-        ARCH=$(uname -m); \
-        echo "TARGETARCH not set, detected runtime architecture: $ARCH"; \
         case $ARCH in \
-            x86_64) NGROK_ZIP="ngrok-v3-stable-linux-amd64.zip" ;; \
-            aarch64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
-            armv7l) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
-            armv6l) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
-            arm64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
+            armv7l|armhf) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
             *) echo "Unsupported runtime architecture: $ARCH"; exit 1 ;; \
         esac; \
     fi; \
     echo "Using ngrok package: $NGROK_ZIP"; \
-    # Download with retry logic
     curl --retry 5 --retry-delay 2 --retry-max-time 30 \
          -O https://bin.equinox.io/c/bNyj1mQVY4c/${NGROK_ZIP}; \
-    # Verify download
     [ -f ${NGROK_ZIP} ] && [ -s ${NGROK_ZIP} ] || (echo "ngrok download failed" && exit 1); \
     unzip -o ${NGROK_ZIP}; \
     chmod +x ngrok; \
     mv ngrok /usr/local/bin/ngrok; \
     rm ${NGROK_ZIP}; \
-    # Verify installation
-    ngrok version'
-
-# Symlink Node.js and npm from Conda env to /usr/local/bin for sudo access
-RUN ln -s /opt/miniconda/envs/dev_env/bin/node /usr/local/bin/node && \
-    ln -s /opt/miniconda/envs/dev_env/bin/npm /usr/local/bin/npm
+    ngrok version; \
+fi
 
 # Configure existing ubuntu user (architecture independent)
 ARG USERNAME=ubuntu
@@ -218,9 +249,11 @@ RUN useradd -m -s /bin/bash ${USERNAME} || true && \
 RUN groupadd --gid ${HOST_DOCKER_GID:-988} docker || groupmod -g ${HOST_DOCKER_GID:-988} docker || true
 RUN usermod -aG docker ubuntu
 
-# Initialize Conda for the ubuntu user's bash shell and set default env
+# Initialize Conda for the ubuntu user's bash shell and set default env (only if conda exists)
 USER ubuntu
-RUN /opt/miniconda/bin/conda init bash && \
+RUN ARCH=$(uname -m); \
+if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
+    /opt/miniconda/bin/conda init bash && \
     echo '# Source .bashrc for SSH sessions' > /home/ubuntu/.bash_profile && \
     echo 'if [ -f ~/.bashrc ]; then' >> /home/ubuntu/.bash_profile && \
     echo '    source ~/.bashrc' >> /home/ubuntu/.bash_profile && \
@@ -232,7 +265,19 @@ RUN /opt/miniconda/bin/conda init bash && \
     # Add helpful aliases for development
     echo 'alias ll="ls -la"' >> /home/ubuntu/.bashrc && \
     echo 'alias la="ls -A"' >> /home/ubuntu/.bashrc && \
-    echo 'alias l="ls -CF"' >> /home/ubuntu/.bashrc
+    echo 'alias l="ls -CF"' >> /home/ubuntu/.bashrc; \
+else \
+    # ARMHF/armv7l: no conda, just add aliases and .bash_profile
+    echo '# Source .bashrc for SSH sessions' > /home/ubuntu/.bash_profile && \
+    echo 'if [ -f ~/.bashrc ]; then' >> /home/ubuntu/.bash_profile && \
+    echo '    source ~/.bashrc' >> /home/ubuntu/.bash_profile && \
+    echo 'fi' >> /home/ubuntu/.bash_profile && \
+    echo '' >> /home/ubuntu/.bashrc && \
+    echo '# ARMHF/armv7l: No conda environment, using system Python/Node.js' >> /home/ubuntu/.bashrc && \
+    echo 'alias ll="ls -la"' >> /home/ubuntu/.bashrc && \
+    echo 'alias la="ls -A"' >> /home/ubuntu/.bashrc && \
+    echo 'alias l="ls -CF"' >> /home/ubuntu/.bashrc; \
+fi
 
 # Switch back to root for subsequent steps
 USER root
