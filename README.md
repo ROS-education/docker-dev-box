@@ -1,35 +1,48 @@
 # dev-box
 
-A Dockerized development environment based on Ubuntu Noble, providing a complete SSH-accessible development environment managed by Supervisor. It comes pre-configured with Miniconda, essential C++/Python development tools, and is ready for remote development via SSH.
-
-
+A Dockerized development environment based on Ubuntu Noble, providing a complete SSH-accessible development environment managed by Supervisor. It comes pre-configured with Miniconda, essential C++/Python/Node.js development tools, Docker-in-Docker support, and is ready for remote development via SSH or VS Code DevContainer.
 
 ## ✨ Features
 
 *   **Multi-Architecture Support:** Native support for both **AMD64** (x86_64) and **ARM64** (aarch64) architectures, including Apple Silicon Macs (M1/M2/M3)
 *   **SSH-Based Development:** Access a full development environment via SSH with VS Code Remote Development.
-*   **Ubuntu Noble Base:** Built on the latest Ubuntu LTS release (at the time of writing).
-*   **Miniconda:** Includes Miniconda for robust Python package and environment management.
+*   **VS Code DevContainer:** Native devcontainer support via `.devcontainer/devcontainer.json`.
+*   **Ubuntu Noble Base:** Built on `ubuntu:noble-20250404`.
+*   **Miniconda:** Includes Miniconda for robust Python package and environment management (AMD64 and ARM64).
 *   **Pre-configured Conda Environment (`dev_env`):**
     *   Python 3.12
     *   Node.js 22
     *   CMake
-    *   C++ Compiler (g++)
+    *   C++ Compiler (g++ via `cxx-compiler`)
     *   Make
     *   GDB (GNU Debugger)
-*   **System Tools:**
-    *   `git` for version control.
-    *   `clangd` for C/C++ language intelligence (installed via apt).
+*   **Developer Tools:**
+    *   `git` — version control
+    *   `clangd` — C/C++ language intelligence (via apt)
+    *   `gh` — GitHub CLI
+    *   `gcloud` — Google Cloud SDK (AMD64 and ARM64)
+    *   `firebase-tools` — Firebase CLI (via npm in `dev_env`)
+    *   `ngrok` — secure tunnel tool
+    *   `rsync` — file synchronization
+    *   `bash-completion` — shell completions
+*   **Container / Cloud Tools:**
+    *   Docker CLI (`docker`, `docker compose`, `docker buildx`)
+    *   Docker socket (`/var/run/docker.sock`) mounted for Docker-in-Docker workflows
+*   **Java Runtime:** `openjdk-17-jre-headless`
+*   **Network Utilities:** `netcat-openbsd`, `iproute2`, `iptables`, `iputils-ping`, `traceroute`, `dnsutils`, `tcpdump`, `nmap`
+*   **USB / Device Access:** `usbutils`, `libusb-1.0-0-dev`, `libudev-dev`; ubuntu user added to `dialout`, `plugdev`, and `tty` groups
 *   **Process Management:** Uses `supervisor` to manage SSH and other services reliably.
-*   **Non-root User:** Runs development tasks as a standard user (`ubuntu`, UID/GID 1000) with passwordless `sudo` access.
-*   **Persistent Storage:** Uses Docker volumes to persist user configuration and project files between container runs.
-*   **SSH Access:** Secure SSH server running on port 2222 with both password and key-based authentication.
+*   **Non-root User:** Runs as `ubuntu` (UID/GID 1000) with passwordless `sudo` access.
+*   **Persistent Storage:** Named Docker volumes for user configuration, conda environments, and the workspace.
+*   **SSH Access:** Secure SSH server on port **2222** supporting both password and key-based authentication.
+*   **Host Networking:** Runs in `network_mode: host` — no port mapping needed.
+*   **Privileged Mode:** Runs with full privileges for device, USB, and system-level access.
 
 ## ⚙️ Prerequisites
 
 *   Docker Engine or Docker Desktop installed.
-*   Git (optional, for cloning this repository).
 *   Docker Compose (or the `docker compose` plugin).
+*   Git (optional, for cloning this repository).
 
 ## 🌐 Network Configuration
 
@@ -43,329 +56,248 @@ This container is configured to use **host networking** by default, providing di
 
 ## ▶️ Usage (Running with Docker Compose)
 
-This project includes a `docker-compose.yaml` file for easier management of the container and its volumes.
+### 1. Set up environment variables
 
-1.  **Prerequisites:**
-    *   Ensure you have `docker` and `docker-compose` (or the `docker compose` plugin) installed.
-    *   Make sure the `Dockerfile`, the `app` directory, and the `docker-compose.yaml` file are in the same directory.
-
-2.  **Build and Start the Container:**
-    Open your terminal in the directory containing the `docker-compose.yaml` file and run:
-
-    ```bash
-    docker-compose up -d --build
-    ```
-
-    *   `docker-compose up`: Creates and starts the container(s) defined in the file.
-    *   `-d`: Runs the container(s) in detached mode (in the background).
-    *   `--build`: Forces Docker Compose to build the image using the `Dockerfile` before starting the service. You can omit `--build` on subsequent runs if the `Dockerfile` hasn't changed.
-
-3.  **Access the development environment:**
-    *   **SSH Access:** The container provides SSH access on port 2222:
-      - `ssh -p 2222 ubuntu@localhost` (local)
-      - `ssh -p 2222 ubuntu@<host-ip>` (remote)
-      - Default password: `ubuntu` (⚠️ **Change this in production!**)
-
-4.  **Working with Project Files:**
-    The `docker-compose.yaml` file uses named volumes:
-    *   `config`: Persists user settings and configurations from `/home/ubuntu/.config`.
-    *   `conda`: Persists Conda environments and packages from `/home/ubuntu/.conda`.
-    *   `Codespaces`: General workspace volume for projects.
-
-    **Important:** This `docker-compose.yaml` uses *named volumes* managed by Docker. This means your project files are stored within Docker's internal storage area, not directly in a folder you specify on your host *by default*.
-
-    *   **Option 1 (Recommended for new projects):** SSH into the container and use the terminal to clone repositories or create new projects directly within the `/workspace` directory. The data will be saved in the mounted volumes.
-    *   **Option 2 (Using existing host projects - Modify Compose):** If you prefer to work directly with projects stored in a specific folder on your host machine (like `/path/on/your/host/to/projects`), modify the `volumes` section within the `dev-box` service in your `docker-compose.yaml` like this:
-
-        ```yaml
-        services:
-          dev-box:
-            # ... other settings ...
-            volumes:
-              - config:/home/ubuntu/.config
-              - conda:/home/ubuntu/.conda
-              - Codespaces:/workspace
-              - /path/on/your/host/to/projects:/home/ubuntu/projects  # Add this bind mount
-            # ... other settings ...
-        ```
-        **Remember to replace `/path/on/your/host/to/projects` with the actual path on your computer.** Then run `docker-compose up -d` again.
-
-5.  **Using the Environment:**
-    *   Once connected via SSH, you are in a full Ubuntu development environment running inside the container.
-    *   Open a terminal session. You will be logged in as the `ubuntu` user, and the `dev_env` Conda environment will be activated automatically.
-    *   You can use `git`, `python`, `g++`, `cmake`, `make`, `gdb`, `node`, etc., directly in the terminal.
-    *   For a full IDE experience, use VS Code with the Remote-SSH extension to connect to the container.
-
-6.  **Stopping the Container:**
-    To stop the container(s) defined in the compose file:
-    ```bash
-    docker-compose down
-    ```
-    *(This stops and removes the container, but preserves the named volumes by default.)*
-
-7.  **Stopping and Removing Volumes:**
-    If you want to stop the container AND remove the named volumes (`config`, `projects`):
-    ```bash
-    docker-compose down -v
-    ```
-
-8.  **Restarting the Container:**
-    If the container is stopped, you can restart it with:
-    ```bash
-    docker-compose up -d
-    ```
-
-9.  **Viewing Logs:**
-    To view the logs from the running container:
-    ```bash
-    docker-compose logs -f dev-box
-    ```
-    (Press `Ctrl+C` to stop following logs).
-
-## 🚀 Quick Start
-
-For the fastest setup experience, use the quick setup script:
+Copy the example `.env` file and update it for your system:
 
 ```bash
-git clone <repository-url>
-cd docker-dev-box
-./quick-setup.sh
+cp .env.example .env
 ```
 
-The quick setup script will:
-- Check prerequisites (Docker, Docker Compose)
-- Auto-detect your system architecture
-- Create environment configuration
-- Give you options to build or use pre-built images
-- Start the development environment
+Edit `.env` to set the correct values:
 
-For manual setup, continue reading below.
+```dotenv
+# GID of the docker group on your host (for Docker socket access)
+HOST_DOCKER_GID=988   # replace with: getent group docker | cut -d: -f3
 
-## 🏗️ **Building & Architecture Support**
+# Architecture: amd64 or arm64
+ARCH=amd64
+
+# Timezone
+TZ=UTC
+```
+
+> **Tip:** Run `getent group docker | cut -d: -f3` on your host to get the correct `HOST_DOCKER_GID`.
+
+### 2. Create the external workspace volume
+
+The `Codespaces` volume is declared as `external: true` in `docker-compose.yaml` and must be created before starting the stack:
+
+```bash
+docker volume create Codespaces
+```
+
+### 3. Start the container
+
+The default compose configuration **pulls a pre-built image** from the `wn1980` registry:
+
+```bash
+docker compose up -d
+```
+
+#### Build locally instead (optional)
+
+Uncomment the `build:` block and comment out the `image:` line in `docker-compose.yaml`, or use the build script:
+
+```bash
+./scripts/build-multiarch.sh --platform amd64   # or arm64 / all
+docker compose up -d
+```
+
+### 4. Access the development environment
+
+```bash
+# Local
+ssh -p 2222 ubuntu@localhost
+
+# Remote
+ssh -p 2222 ubuntu@<host-ip>
+```
+
+Default credentials: user `ubuntu`, password `ubuntu`. ⚠️ **Change this in production!**
+
+### 5. Connect with VS Code
+
+- **Remote-SSH extension:** Connect to `ubuntu@localhost:2222`
+- **DevContainer:** Open the project in VS Code and choose *Reopen in Container* — the `.devcontainer/devcontainer.json` is pre-configured
+
+### 6. Working with project files
+
+The compose file uses named Docker volumes:
+
+| Volume | Mount point | Purpose |
+|---|---|---|
+| `config` | `/home/ubuntu/.config` | User settings and tool configuration |
+| `conda` | `/home/ubuntu/.conda` | Conda environments and packages |
+| `Codespaces` | `/workspace` | Project files (external volume) |
+
+To mount a host directory for existing projects, add a bind mount to `docker-compose.yaml`:
+
+```yaml
+volumes:
+  - /path/on/host/to/projects:/home/ubuntu/projects
+```
+
+### 7. Stop / remove the container
+
+```bash
+# Stop and remove container (volumes are preserved)
+docker compose down
+
+# Stop and remove container AND volumes
+docker compose down -v
+```
+
+### 8. View logs
+
+```bash
+docker compose logs -f dev-box
+```
+
+## 🏗️ Building & Architecture Support
 
 This container supports both **AMD64** (Intel/AMD) and **ARM64** (Apple Silicon, ARM servers) architectures:
-
-### Quick Build Options
 
 ```bash
 # Build for current platform (auto-detect)
 docker compose build
 
 # Build for specific architecture
-./build-multiarch.sh --platform arm64    # ARM64 only (Apple Silicon, ARM servers)
-./build-multiarch.sh --platform amd64    # AMD64 only (Intel/AMD)
-./build-multiarch.sh --platform all      # Both architectures
+./scripts/build-multiarch.sh --platform arm64    # ARM64 only (Apple Silicon, ARM servers)
+./scripts/build-multiarch.sh --platform amd64    # AMD64 only (Intel/AMD)
+./scripts/build-multiarch.sh --platform all      # Both architectures
 
-# Multi-architecture with push to registry
-./build-multiarch.sh --platform all --push --registry your-registry.com
+# Build and push to registry
+./scripts/build-multiarch.sh --platform all --push --registry your-registry.com
 ```
 
 ### Apple Silicon Mac Users
+
 ```bash
-# Optimal for M1/M2/M3 Macs - builds native ARM64
-./build-multiarch.sh --platform arm64
+# Optimal for M1/M2/M3 Macs — builds native ARM64
+./scripts/build-multiarch.sh --platform arm64
 docker compose up -d
 ```
 
-📖 **For detailed ARM64 support information, see [docs/ARM64-SUPPORT.md](./docs/ARM64-SUPPORT.md)**
-📖 **For ARM64 quick start, see [docs/ARM64-QUICKSTART.md](./docs/ARM64-QUICKSTART.md)**
+📖 See [docs/ARM64-SUPPORT.md](./docs/ARM64-SUPPORT.md) and [docs/ARM64-QUICKSTART.md](./docs/ARM64-QUICKSTART.md) for details.
 
 ## 🔧 Configuration
 
-*   **Supervisor:** Process management is handled by Supervisor. Configuration files are located in the `app/` directory within this repository and copied to `/app` inside the container.
-    *   `app/supervisord.conf`: Main supervisor configuration.
-    *   `app/conf.d/sshd.conf`: Configuration for running the SSH server process.
-*   **SSH Server:** SSH configuration is handled via standard `/etc/ssh/sshd_config` with enhancements for remote development.
-*   **Conda:** The `dev_env` environment is activated by default for the `ubuntu` user's bash sessions via `.bashrc`. You can manage packages using `conda install`, `conda remove`, etc., within SSH terminals.
+*   **Supervisor:** Process management configuration lives in the `app/` directory and is copied to `/app` inside the container.
+    *   `app/supervisord.conf` — main Supervisor configuration
+    *   `app/conf.d/sshd.conf` — SSH daemon service (port 2222)
+*   **SSH Server:** Configured via `/etc/ssh/sshd_config` with Remote Development-friendly settings (X11 forwarding, keep-alive, environment variable pass-through for Conda).
+*   **Conda:** The `dev_env` environment is activated by default for the `ubuntu` user via `.bashrc`.
+*   **Docker group GID:** Set via `HOST_DOCKER_GID` in `.env` to match your host's docker group, enabling access to the mounted Docker socket.
+*   **Timezone:** Controlled via the `TZ` environment variable (default `Asia/Bangkok` in compose, configure in `.env`).
 
-*Note: AI code generation tools assisted in the development of this project.*
+## 🗄️ MongoDB Add-on
+
+A standalone MongoDB service configuration is available in [`mongodb/docker-compose.yml`](./mongodb/docker-compose.yml). It uses an external volume `mongodb_data` and exposes MongoDB on port `27017`.
+
+```bash
+# Create the external volume first
+docker volume create mongodb_data
+
+# Start MongoDB
+docker compose -f mongodb/docker-compose.yml up -d
+```
+
+## 📁 Project Structure
+
+```
+docker-dev-box/
+├── Dockerfile                  # Main Docker image definition (multi-arch)
+├── docker-compose.yaml         # Main compose configuration
+├── .env                        # Local environment variables (gitignored)
+├── .env.example                # Environment configuration template
+├── .devcontainer/
+│   └── devcontainer.json       # VS Code DevContainer configuration
+├── app/                        # Supervisor process management
+│   ├── supervisord.conf        # Main Supervisor config
+│   └── conf.d/
+│       └── sshd.conf           # SSH daemon config (port 2222)
+├── docs/                       # Comprehensive documentation
+├── mongodb/
+│   └── docker-compose.yml      # MongoDB companion service
+├── scripts/
+│   ├── build-multiarch.sh      # Multi-architecture Docker image builder
+│   └── transfer-to-remote.sh   # Transfer project files to a remote system
+└── tests/                      # Test and validation scripts
+```
+
+### 📚 Documentation (`/docs/`)
+
+| Topic | File |
+|---|---|
+| Quick start | [QUICK-START.md](./docs/QUICK-START.md) |
+| Access methods | [ACCESS-METHODS.md](./docs/ACCESS-METHODS.md) |
+| ARM64 support | [ARM64-SUPPORT.md](./docs/ARM64-SUPPORT.md) |
+| ARM64 quick start | [ARM64-QUICKSTART.md](./docs/ARM64-QUICKSTART.md) |
+| ARM64 implementation | [ARM64-IMPLEMENTATION-SUMMARY.md](./docs/ARM64-IMPLEMENTATION-SUMMARY.md) |
+| Host networking | [HOST-NETWORK-SETUP.md](./docs/HOST-NETWORK-SETUP.md) |
+| Linux capabilities | [CAPABILITIES-SETUP.md](./docs/CAPABILITIES-SETUP.md) |
+| SSH setup | [SSH-SETUP.md](./docs/SSH-SETUP.md) |
+| Remote setup | [REMOTE-SETUP.md](./docs/REMOTE-SETUP.md) |
+| Troubleshooting | [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) |
+| Privileged vs capabilities | [PRIVILEGED-vs-CAPABILITIES.md](./docs/PRIVILEGED-vs-CAPABILITIES.md) |
+| Remote SSH vs DevContainer | [REMOTE-SSH-VS-DEVCONTAINER-COMPARISON.md](./docs/REMOTE-SSH-VS-DEVCONTAINER-COMPARISON.md) |
+| Remote workflow | [REMOTE-WORKFLOW.md](./docs/REMOTE-WORKFLOW.md) |
+| Host system control | [HOST-SYSTEM-CONTROL.md](./docs/HOST-SYSTEM-CONTROL.md) |
+| System control test results | [SYSTEM-CONTROL-TEST-RESULTS.md](./docs/SYSTEM-CONTROL-TEST-RESULTS.md) |
+| GitHub CLI guide | [GITHUB-CLI-GUIDE.md](./docs/GITHUB-CLI-GUIDE.md) |
+| Device access explained | [DEVICE-ACCESS-EXPLAINED.md](./docs/DEVICE-ACCESS-EXPLAINED.md) |
+| Tagging summary | [TAGGING-SUMMARY.md](./docs/TAGGING-SUMMARY.md) |
+
+### 🔧 Scripts (`/scripts/`)
+
+| Script | Description |
+|---|---|
+| `build-multiarch.sh` | Build Docker images for AMD64, ARM64, or both |
+| `transfer-to-remote.sh` | Interactively transfer project to a remote machine via SCP |
+
+### 🧪 Tests (`/tests/`)
+
+| Script | Description |
+|---|---|
+| `test-capabilities.sh` | Tests Linux capabilities configuration |
+| `test-conda-setup.sh` | Validates Conda environment setup |
+| `test-host-network.sh` | Tests host networking configuration |
+| `test-system-control.sh` | Tests system control capabilities |
+| `test-usb-access.sh` | Tests USB device access |
+| `test-device-access.sh` | Tests device access functionality |
+| `test-device-mount-vs-mapping.sh` | Compares volume mount vs device mapping |
+| `demo-system-control.sh` | Demonstrates system control capabilities |
+| `validate-arm64-setup.sh` | Validates ARM64-specific configurations |
+| `validate-complete-setup.sh` | Full end-to-end validation |
 
 ## 🌐 Remote PC Usage
 
-This development environment can be deployed and accessed on a remote PC/server, allowing you to develop from anywhere using SSH connections.
-
-### Quick Setup on Remote PC
-
 1. **Transfer files to remote PC:**
    ```bash
-   # Automated transfer with setup options
-   ./transfer-to-remote.sh
-   
-   # OR manual transfer
-   git clone <repository-url>
-   cd docker-dev-box
+   ./scripts/transfer-to-remote.sh
    ```
 
-2. **Run the automated setup (if not done during transfer):**
-   ```bash
-   ./setup-remote-pc.sh
-   ```
+2. **Access your environment:**
+   - **VS Code Remote-SSH:** Connect to `ubuntu@<remote-ip>:22`
+   - **Direct SSH:** `ssh -p 2222 ubuntu@<remote-ip>`
 
-3. **Access your environment:**
-   - **VS Code Remote-SSH:** Configure connection to `remote-pc-ip:22`
-   - **Direct SSH:** `ssh ubuntu@remote-pc-ip`
+📖 See [docs/REMOTE-SETUP.md](./docs/REMOTE-SETUP.md) for full instructions.
 
-### Features for Remote Development
+## 🔒 Security Notes
 
-- **SSH Server:** Built-in SSH server for VS Code Remote-SSH connections
-- **Conda Environment:** Automatically activated for all sessions
-- **Port Forwarding:** Easy access to development servers
-- **Persistent Storage:** Your work persists across container restarts
+This environment is configured for **development use**. Before deploying in production:
 
-### Security & Production
-
-For production deployments:
-- Change default passwords
-- Set up SSH key authentication
+- Change the default `ubuntu` password
+- Set up SSH key-based authentication and disable password auth
 - Configure firewall rules
-- Use reverse proxy with SSL
-- Set up SSH key authentication
-- Configure firewall rules
-- Use reverse proxy with SSL
-
-📖 **For detailed remote setup instructions, see [docs/REMOTE-SETUP.md](./docs/REMOTE-SETUP.md)**
+- Use a reverse proxy with TLS if exposing services externally
+- Avoid running with `privileged: true` if not required — see [docs/CAPABILITIES-SETUP.md](./docs/CAPABILITIES-SETUP.md)
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit pull requests or open issues.
 
-# Development Environment
+*Note: AI code generation tools assisted in the development of this project.*
 
-## Modes of Operation
-
-### 1. Devcontainer Mode (VS Code)
-- Open the project in VS Code.
-- Install the "Remote - Containers" extension.
-- Click on the green "Remote" icon in the bottom-left corner and select "Reopen in Container."
-
-### 2. Normal Mode (Docker Compose)
-- Ensure the `.env` file is configured correctly.
-- Run the following command to start the container:
-  ```bash
-  docker-compose --profile normal up -d
-  ```
-
----
-
-### **6. Optional: Add a Validation Script**
-Create a script to validate the [.env](http://_vscodecontentref_/10) file and ensure required variables are set before running in either mode.
-
-#### Example Validation Script (`validate-env.sh`):
-```bash
-#!/bin/bash
-if [ -z "$HOST_DOCKER_GID" ]; then
-  echo "Error: HOST_DOCKER_GID is not set in .env file."
-  exit 1
-fi
-if [ -z "$ARCH" ]; then
-  echo "Error: ARCH is not set in .env file."
-  exit 1
-fi
-echo "Environment variables are valid."
-```
-
-## 📁 Project Structure
-
-This project is organized into the following directories:
-
-### 🏠 Root Directory
-* **`Dockerfile`** - Main Docker image definition
-* **`docker-compose.yaml`** - Main compose configuration  
-* **`quick-setup.sh`** - One-command setup script for new users
-* **`setup-remote-pc.sh`** - Script for remote PC setup
-* **`detect-and-map-devices.sh`** - Auto-detects storage devices and generates device mappings
-* **`fix-docker-dns.sh`** - Fixes DNS issues in Docker containers
-* **`setup-docker-in-docker.sh`** - Sets up Docker socket permissions for Docker-in-Docker
-* **`.env.example`** - Environment configuration template
-
-### 📚 Documentation (`/docs/`)
-Comprehensive documentation organized by topic:
-
-**Getting Started:**
-- **QUICK-START.md** - Quick start guide for using the development environment
-- **ACCESS-METHODS.md** - Different ways to access the development environment
-
-**Architecture Support:**
-- **ARM64-SUPPORT.md** - Detailed information about ARM64 architecture support
-- **ARM64-QUICKSTART.md** - Quick start guide for ARM64 users
-- **ARM64-IMPLEMENTATION-SUMMARY.md** - Implementation details for ARM64 support
-
-**Configuration Guides:**
-- **HOST-NETWORK-SETUP.md** - Guide for configuring host networking
-- **CAPABILITIES-SETUP.md** - Using Linux capabilities instead of privileged mode
-- **SSH-SETUP.md** - SSH configuration details
-- **REMOTE-SETUP.md** - Setting up for remote development
-- **TROUBLESHOOTING.md** - Common issues and solutions
-
-**Comparison and Analysis:**
-- **PRIVILEGED-vs-CAPABILITIES.md** - Comparison between privileged mode and capabilities
-- **REMOTE-SSH-VS-DEVCONTAINER-COMPARISON.md** - Comparison between Remote SSH and DevContainer approaches
-- **REMOTE-WORKFLOW.md** - Workflows for remote development
-- **HOST-SYSTEM-CONTROL.md** - Information about host system control capabilities
-- **SYSTEM-CONTROL-TEST-RESULTS.md** - Test results for system control features
-
-### 🔧 Utility Scripts (`/scripts/`)
-Build, deployment, and management utilities:
-
-**Build Scripts:**
-- **build-multiarch.sh** - Builds multi-architecture Docker images (AMD64 and ARM64)
-- **build-arm64-complete.sh** - Complete ARM64-specific build script with enhanced compatibility
-- **tag-multiarch-images.sh** - Tags built images with appropriate architecture tags
-- **push-multiarch-images.sh** - Pushes multi-architecture images to registries
-
-**Remote Management:**
-- **manage-ssh-keys.sh** - Manages SSH keys for secure remote access
-- **transfer-to-remote.sh** - Transfers project files to remote systems
-
-**Usage Example:**
-```bash
-# Build for all architectures
-./scripts/build-multiarch.sh --platform all
-
-# Transfer project to remote system
-./scripts/transfer-to-remote.sh
-```
-
-### ⚙️ Application Configuration (`/app/`)
-Supervisor process management configuration:
-
-- **supervisord.conf** - Main supervisor configuration file
-- **conf.d/sshd.conf** - SSH daemon service configuration (port 2222)
-
-**Service Configuration:**
-The SSH daemon is configured to:
-- Listen on port 2222 (avoiding host SSH conflicts)
-- Accept both password and key-based authentication
-- Allow the default user (`ubuntu`) with password `ubuntu` (for development use only)
-
-**Security Note for Production:**
-- Change the default password
-- Configure SSH key-based authentication
-- Consider disabling password authentication
-
-### 🧪 Test & Validation (`/tests/`)
-Scripts for testing and validating the environment:
-
-**Test Scripts:**
-- **test-capabilities.sh** - Tests Linux capabilities configuration
-- **test-conda-setup.sh** - Validates Conda environment setup and dependencies
-- **test-host-network.sh** - Tests host networking configuration and access
-- **test-system-control.sh** - Tests system control capabilities
-- **test-usb-access.sh** - Tests USB device access from the container
-- **demo-system-control.sh** - Demonstrates system control capabilities safely
-- **test-device-access.sh** - Tests device access functionality
-- **test-device-mount-vs-mapping.sh** - Compares volume mount vs device mapping approaches
-
-**Validation Scripts:**
-- **validate-arm64-setup.sh** - Validates ARM64-specific configurations
-- **validate-complete-setup.sh** - Validates the complete setup including SSH, networking, etc.
-
-**Usage Example:**
-```bash
-# From host system
-./tests/test-host-network.sh
-
-# From within container
-docker exec -it dev_box /workspace/tests/test-host-network.sh
-```
 
