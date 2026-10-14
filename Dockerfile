@@ -2,7 +2,7 @@
 # architecture based on the build context or --platform flag.
 # Supports both AMD64 (x86_64) and ARM64 (aarch64) architectures
 # Pinning to a specific date tag for reproducibility
-FROM ubuntu:noble-20250404
+FROM ubuntu:resolute
 
 # Define ARG for host docker group GID.
 # IMPORTANT: Set this at build time (--build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3))
@@ -30,6 +30,7 @@ RUN for i in 1 2 3; do \
     done && \
     apt-get install -y --no-install-recommends \
     # Base requirement
+    locales \
     ca-certificates \
     curl \
     gnupg \
@@ -45,6 +46,9 @@ RUN for i in 1 2 3; do \
     openjdk-17-jre-headless \
     openssh-server \
     rsync \
+    # Hardware and system diagnostics
+    pciutils \
+    lsof \
     # Network utilities for host networking
     netcat-openbsd \
     iproute2 \
@@ -54,7 +58,15 @@ RUN for i in 1 2 3; do \
     dnsutils \
     tcpdump \
     nmap \
+ && locale-gen en_US.UTF-8 \
+ && update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 \
  && rm -rf /var/lib/apt/lists/*
+
+# Set default locale environment and CLI configurations
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8 \
+    AGY_CLI_DISABLE_AUTO_UPDATE=true
 
 # Add Docker's official GPG key & repository for CLI tools
 RUN install -m 0755 -d /etc/apt/keyrings && \
@@ -85,9 +97,11 @@ RUN ARCH=$(uname -m); \
             apt-transport-https \
             gnupg \
             lsb-release && \
-        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
-        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-        apt-get update && apt-get install -y --no-install-recommends google-cloud-sdk && \
+        mkdir -p /usr/share/keyrings && \
+        curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && \
+        chmod a+r /usr/share/keyrings/cloud.google.gpg && \
+        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee /etc/apt/sources.list.d/google-cloud-sdk.list && \
+        apt-get update && apt-get install -y --no-install-recommends google-cloud-cli && \
         rm -rf /var/lib/apt/lists/*; \
     else \
         echo "Skipping Google Cloud CLI install: not supported on $ARCH"; \
@@ -140,13 +154,15 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
     ARCH=$(uname -m); \
     if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
         $MINICONDA_PATH/bin/conda config --system --set auto_activate_base false; \
+        $MINICONDA_PATH/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main || true; \
+        $MINICONDA_PATH/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r || true; \
         $MINICONDA_PATH/bin/conda clean -afy; \
     else \
         echo "Skipping auto_activate_base config and conda clean for $ARCH (unsupported in old Miniconda)"; \
     fi && \
     # Verify installation
     $MINICONDA_PATH/bin/conda --version && \
-    conda create -n dev_env -c conda-forge \
+    conda create -n dev_env --override-channels -c conda-forge \
         python=3.12 \
         nodejs=22 \
         cmake \
@@ -238,6 +254,8 @@ RUN useradd -m -s /bin/bash ${USERNAME} || true && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.conda && \
     mkdir -p /home/${USERNAME}/.config && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config && \
+    mkdir -p /home/${USERNAME}/.gemini && \
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.gemini && \
     mkdir -p /workspace && \
     chown -R ${USERNAME}:${USERNAME} /workspace && \
     ln -sfn /workspace /home/${USERNAME}/workspace && \
@@ -285,6 +303,36 @@ USER root
 # Allow ubuntu user to use sudo without password (architecture independent)
 RUN echo 'ubuntu ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ubuntu-nopasswd && \
     chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
+
+# Install Antigravity CLI (formerly Gemini CLI)
+USER ubuntu
+RUN curl -fsSL https://antigravity.google/cli/install.sh | bash
+
+# Configure Antigravity CLI to auto-accept tools and shell commands
+RUN mkdir -p /home/ubuntu/.gemini/antigravity-cli && \
+    cat > /home/ubuntu/.gemini/antigravity-cli/settings.json << 'EOF'
+{
+  "toolPermission": "always-proceed",
+  "artifactReviewPolicy": "always-proceed",
+  "enableTerminalSandbox": false,
+  "allowNonWorkspaceAccess": true,
+  "permissions": {
+    "allow": [
+      "command(*)",
+      "read_file(*)",
+      "write_file(*)",
+      "read_url(*)",
+      "execute_url(*)",
+      "mcp(*)",
+      "shell(*)",
+      "run_command(*)",
+      "replace_file_content(*)",
+      "create_file(*)"
+    ]
+  }
+}
+EOF
+USER root
 
 # Install USB utilities and add ubuntu user to dialout and plugdev groups for USB access
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -341,6 +389,8 @@ RUN mkdir -p /home/ubuntu/.ssh && \
     echo 'PATH=/opt/miniconda/bin:/opt/miniconda/envs/dev_env/bin:/home/ubuntu/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > /home/ubuntu/.ssh/environment && \
     echo 'CONDA_DEFAULT_ENV=dev_env' >> /home/ubuntu/.ssh/environment && \
     echo 'CONDA_PREFIX=/opt/miniconda/envs/dev_env' >> /home/ubuntu/.ssh/environment && \
+    echo 'LANG=en_US.UTF-8' >> /home/ubuntu/.ssh/environment && \
+    echo 'LC_ALL=en_US.UTF-8' >> /home/ubuntu/.ssh/environment && \
     chown ubuntu:ubuntu /home/ubuntu/.ssh/environment && \
     chmod 600 /home/ubuntu/.ssh/environment
 
@@ -388,7 +438,7 @@ RUN mkdir -p /var/run && \
     echo 'fi' >> /usr/local/bin/fix-docker-socket.sh && \
     chmod +x /usr/local/bin/fix-docker-socket.sh
 
-VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.conda"]
+VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.conda", "/home/ubuntu/.gemini"]
 EXPOSE 2222
 
 # --- IMPORTANT NOTES FOR SHARING HOST DOCKER DAEMON, USB DEVICES, AND HOST NETWORK ---

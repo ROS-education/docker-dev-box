@@ -21,9 +21,11 @@ services:
     environment:
       - TZ=Asia/Bangkok
       - COMPOSE_BAKE=true
+      - AGY_CLI_DISABLE_AUTO_UPDATE=true
     volumes:
       - config:/home/ubuntu/.config
       - conda:/home/ubuntu/.conda
+      - gemini:/home/ubuntu/.gemini
       - Codespaces:/workspace
       - /var/run/docker.sock:/var/run/docker.sock
       - /dev:/dev
@@ -58,6 +60,9 @@ services:
       
       # # Additional NVMe devices (for multi-drive systems)
       # - /dev/nvme1n1:/dev/nvme1n1
+    device_cgroup_rules:
+      - 'c *:* rwm'
+      - 'b *:* rwm'
     cap_add:
       - ALL
     security_opt:
@@ -74,5 +79,6 @@ services:
 volumes:
   config:
   conda:
+  gemini:
   Codespaces:
     external: true
