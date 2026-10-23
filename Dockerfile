@@ -43,7 +43,6 @@ RUN for i in 1 2 3; do \
     wget \
     unzip \
     bzip2 \
-    openjdk-17-jre-headless \
     openssh-server \
     rsync \
     # Hardware and system diagnostics
@@ -107,78 +106,28 @@ RUN ARCH=$(uname -m); \
         echo "Skipping Google Cloud CLI install: not supported on $ARCH"; \
     fi
 
-# Set environment variable for Miniconda installation path
-ENV MINICONDA_PATH=/opt/miniconda
-# Set environment variable for updated PATH (Conda and ~/.local/bin added)
-ENV PATH=$MINICONDA_PATH/bin:/home/ubuntu/.local/bin:$PATH
+# Set environment variable for updated PATH (~/.local/bin added for user tools and agy)
+ENV PATH=/home/ubuntu/.local/bin:$PATH
 
-# Ensure sudo conda works for all users
-RUN echo 'Defaults secure_path="/opt/miniconda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >> /etc/sudoers && \
-    ln -s /opt/miniconda/bin/conda /usr/local/bin/conda
-
-# Install Miniconda and dev tools - multi-arch logic
-RUN ARCH=$(uname -m); \
-if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
-    # Miniconda/conda-forge path (modern archs)
-    # Determine the architecture suffix for the Miniconda filename
-    if [ -n "${TARGETARCH:-}" ]; then \
-        echo "Using BuildKit TARGETARCH: ${TARGETARCH}"; \
-        case ${TARGETARCH} in \
-            amd64) MINICONDA_ARCH_SUFFIX="x86_64" ;; \
-            arm64) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
-            arm|arm/v7|armhf) MINICONDA_ARCH_SUFFIX="armv7l" ;; \
-            *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
-        esac; \
-    else \
-        echo "TARGETARCH not set, using runtime architecture detection"; \
-        RUNTIME_ARCH=$(uname -m); \
-        case ${RUNTIME_ARCH} in \
-            x86_64) MINICONDA_ARCH_SUFFIX="x86_64" ;; \
-            aarch64) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
-            armv7l|armhf) MINICONDA_ARCH_SUFFIX="armv7l" ;; \
-            arm64) MINICONDA_ARCH_SUFFIX="aarch64" ;; \
-            *) echo "Unsupported runtime architecture: ${RUNTIME_ARCH}"; exit 1 ;; \
-        esac; \
-    fi && \
-    echo "Using Miniconda architecture: ${MINICONDA_ARCH_SUFFIX}" && \
-    # Download the correct installer with retry logic
-    wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 --tries=5 \
-         "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-${MINICONDA_ARCH_SUFFIX}.sh" \
-         -O ~/miniconda.sh && \
-    # Verify download
-    [ -f ~/miniconda.sh ] && [ -s ~/miniconda.sh ] || (echo "Miniconda download failed" && exit 1) && \
-    # Install Miniconda
-    bash ~/miniconda.sh -b -p $MINICONDA_PATH && \
-    rm ~/miniconda.sh && \
-    # Configure Conda (skip auto_activate_base and clean for armv7l/armhf)
-    ARCH=$(uname -m); \
-    if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
-        $MINICONDA_PATH/bin/conda config --system --set auto_activate_base false; \
-        $MINICONDA_PATH/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main || true; \
-        $MINICONDA_PATH/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r || true; \
-        $MINICONDA_PATH/bin/conda clean -afy; \
-    else \
-        echo "Skipping auto_activate_base config and conda clean for $ARCH (unsupported in old Miniconda)"; \
-    fi && \
-    # Verify installation
-    $MINICONDA_PATH/bin/conda --version && \
-    conda create -n dev_env --override-channels -c conda-forge \
-        python=3.12 \
-        nodejs=22 \
+# Install Python, Node.js, and dev tools (architecture independent)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 \
+        python3-pip \
+        python3-venv \
+        nodejs \
+        npm \
         cmake \
-        cxx-compiler \
+        g++ \
         make \
-        gdb \
-        -y && \
-    conda clean -afy && \
-    bash -c "source /opt/miniconda/etc/profile.d/conda.sh && conda activate dev_env && npm install -g firebase-tools" && \
+        gdb && \
+    npm install -g firebase-tools && \
     /bin/bash -c 'set -e; \
         if [ -n "${TARGETARCH:-}" ]; then \
             echo "Using BuildKit TARGETARCH: ${TARGETARCH}"; \
             case ${TARGETARCH} in \
                 amd64) NGROK_ZIP="ngrok-v3-stable-linux-amd64.zip" ;; \
                 arm64) NGROK_ZIP="ngrok-v3-stable-linux-arm64.zip" ;; \
-                arm/v7|armhf) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
+                arm|arm/v7|armhf) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
                 *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
             esac; \
         else \
@@ -195,52 +144,13 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
         echo "Using ngrok package: $NGROK_ZIP"; \
         curl --retry 5 --retry-delay 2 --retry-max-time 30 \
              -O https://bin.equinox.io/c/bNyj1mQVY4c/${NGROK_ZIP}; \
-        # Verify download
         [ -f ${NGROK_ZIP} ] && [ -s ${NGROK_ZIP} ] || (echo "ngrok download failed" && exit 1); \
         unzip -o ${NGROK_ZIP}; \
         chmod +x ngrok; \
         mv ngrok /usr/local/bin/ngrok; \
         rm ${NGROK_ZIP}; \
         ngrok version' && \
-    ln -s /opt/miniconda/envs/dev_env/bin/node /usr/local/bin/node && \
-    ln -s /opt/miniconda/envs/dev_env/bin/npm /usr/local/bin/npm; \
-else \
-    # ARMHF/armv7l path: skip Miniconda, use system packages
-    echo "Skipping Miniconda/conda setup for $ARCH (unsupported on armv7l/armhf)"; \
-    apt-get update && apt-get install -y --no-install-recommends \
-        python3 \
-        python3-pip \
-        nodejs \
-        npm \
-        cmake \
-        g++ \
-        make \
-        gdb && \
-    npm install -g firebase-tools && \
-    # ngrok install (same logic as above)
-    ARCH=$(uname -m); \
-    if [ -n "${TARGETARCH:-}" ]; then \
-        echo "Using BuildKit TARGETARCH: ${TARGETARCH}"; \
-        case ${TARGETARCH} in \
-            arm|arm/v7|armhf) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
-            *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
-        esac; \
-    else \
-        case $ARCH in \
-            armv7l|armhf) NGROK_ZIP="ngrok-v3-stable-linux-arm.zip" ;; \
-            *) echo "Unsupported runtime architecture: $ARCH"; exit 1 ;; \
-        esac; \
-    fi; \
-    echo "Using ngrok package: $NGROK_ZIP"; \
-    curl --retry 5 --retry-delay 2 --retry-max-time 30 \
-         -O https://bin.equinox.io/c/bNyj1mQVY4c/${NGROK_ZIP}; \
-    [ -f ${NGROK_ZIP} ] && [ -s ${NGROK_ZIP} ] || (echo "ngrok download failed" && exit 1); \
-    unzip -o ${NGROK_ZIP}; \
-    chmod +x ngrok; \
-    mv ngrok /usr/local/bin/ngrok; \
-    rm ${NGROK_ZIP}; \
-    ngrok version; \
-fi
+    rm -rf /var/lib/apt/lists/*
 
 # Configure existing ubuntu user (architecture independent)
 ARG USERNAME=ubuntu
@@ -250,8 +160,6 @@ RUN useradd -m -s /bin/bash ${USERNAME} || true && \
     usermod --shell /bin/bash ${USERNAME} && \
     mkdir -p /home/${USERNAME}/.n8n && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.n8n && \
-    mkdir -p /home/${USERNAME}/.conda && \
-    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.conda && \
     mkdir -p /home/${USERNAME}/.config && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config && \
     mkdir -p /home/${USERNAME}/.gemini && \
@@ -267,35 +175,16 @@ RUN useradd -m -s /bin/bash ${USERNAME} || true && \
 RUN groupadd --gid ${HOST_DOCKER_GID:-988} docker || groupmod -g ${HOST_DOCKER_GID:-988} docker || true
 RUN usermod -aG docker ubuntu
 
-# Initialize Conda for the ubuntu user's bash shell and set default env (only if conda exists)
+# Configure ubuntu user's bash shell and aliases
 USER ubuntu
-RUN ARCH=$(uname -m); \
-if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
-    /opt/miniconda/bin/conda init bash && \
-    echo '# Source .bashrc for SSH sessions' > /home/ubuntu/.bash_profile && \
-    echo 'if [ -f ~/.bashrc ]; then' >> /home/ubuntu/.bash_profile && \
-    echo '    source ~/.bashrc' >> /home/ubuntu/.bash_profile && \
-    echo 'fi' >> /home/ubuntu/.bash_profile && \
-    # Ensure conda activation in .bashrc (conda init should handle this, but being explicit)
-    echo '' >> /home/ubuntu/.bashrc && \
-    echo '# Activate dev_env conda environment by default' >> /home/ubuntu/.bashrc && \
-    echo 'conda activate dev_env' >> /home/ubuntu/.bashrc && \
-    # Add helpful aliases for development
-    echo 'alias ll="ls -la"' >> /home/ubuntu/.bashrc && \
-    echo 'alias la="ls -A"' >> /home/ubuntu/.bashrc && \
-    echo 'alias l="ls -CF"' >> /home/ubuntu/.bashrc; \
-else \
-    # ARMHF/armv7l: no conda, just add aliases and .bash_profile
-    echo '# Source .bashrc for SSH sessions' > /home/ubuntu/.bash_profile && \
+RUN echo '# Source .bashrc for SSH sessions' > /home/ubuntu/.bash_profile && \
     echo 'if [ -f ~/.bashrc ]; then' >> /home/ubuntu/.bash_profile && \
     echo '    source ~/.bashrc' >> /home/ubuntu/.bash_profile && \
     echo 'fi' >> /home/ubuntu/.bash_profile && \
     echo '' >> /home/ubuntu/.bashrc && \
-    echo '# ARMHF/armv7l: No conda environment, using system Python/Node.js' >> /home/ubuntu/.bashrc && \
     echo 'alias ll="ls -la"' >> /home/ubuntu/.bashrc && \
     echo 'alias la="ls -A"' >> /home/ubuntu/.bashrc && \
-    echo 'alias l="ls -CF"' >> /home/ubuntu/.bashrc; \
-fi
+    echo 'alias l="ls -CF"' >> /home/ubuntu/.bashrc
 
 # Switch back to root for subsequent steps
 USER root
@@ -304,9 +193,14 @@ USER root
 RUN echo 'ubuntu ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ubuntu-nopasswd && \
     chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
 
-# Install Antigravity CLI (formerly Gemini CLI)
+# Install Antigravity CLI (only supported on 64-bit architectures)
 USER ubuntu
-RUN curl -fsSL https://antigravity.google/cli/install.sh | bash
+RUN ARCH=$(uname -m); \
+    if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
+        curl -fsSL https://antigravity.google/cli/install.sh | bash; \
+    else \
+        echo "Skipping Antigravity CLI install: not supported on $ARCH"; \
+    fi
 
 # Configure Antigravity CLI to auto-accept tools and shell commands
 RUN mkdir -p /home/ubuntu/.gemini/antigravity-cli && \
@@ -372,8 +266,8 @@ RUN mkdir -p /var/run/sshd && \
     # SSH keepalive settings for better Remote-SSH experience
     echo 'ClientAliveInterval 60' >> /etc/ssh/sshd_config && \
     echo 'ClientAliveCountMax 10' >> /etc/ssh/sshd_config && \
-    # Allow environment variables for conda activation
-    echo 'AcceptEnv CONDA_DEFAULT_ENV CONDA_PREFIX PATH' >> /etc/ssh/sshd_config && \
+    # Allow environment variables
+    echo 'AcceptEnv PATH' >> /etc/ssh/sshd_config && \
     echo 'PermitUserEnvironment yes' >> /etc/ssh/sshd_config && \
     # Fix SSH login issues
     sed -i 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' /etc/pam.d/sshd
@@ -385,10 +279,8 @@ RUN echo 'ubuntu:ubuntu' | chpasswd
 RUN mkdir -p /home/ubuntu/.ssh && \
     chown ubuntu:ubuntu /home/ubuntu/.ssh && \
     chmod 700 /home/ubuntu/.ssh && \
-    # Create SSH environment file for conda activation
-    echo 'PATH=/opt/miniconda/bin:/opt/miniconda/envs/dev_env/bin:/home/ubuntu/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > /home/ubuntu/.ssh/environment && \
-    echo 'CONDA_DEFAULT_ENV=dev_env' >> /home/ubuntu/.ssh/environment && \
-    echo 'CONDA_PREFIX=/opt/miniconda/envs/dev_env' >> /home/ubuntu/.ssh/environment && \
+    # Create SSH environment file
+    echo 'PATH=/home/ubuntu/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > /home/ubuntu/.ssh/environment && \
     echo 'LANG=en_US.UTF-8' >> /home/ubuntu/.ssh/environment && \
     echo 'LC_ALL=en_US.UTF-8' >> /home/ubuntu/.ssh/environment && \
     chown ubuntu:ubuntu /home/ubuntu/.ssh/environment && \
@@ -438,7 +330,7 @@ RUN mkdir -p /var/run && \
     echo 'fi' >> /usr/local/bin/fix-docker-socket.sh && \
     chmod +x /usr/local/bin/fix-docker-socket.sh
 
-VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.conda", "/home/ubuntu/.gemini"]
+VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.gemini"]
 EXPOSE 2222
 
 # --- IMPORTANT NOTES FOR SHARING HOST DOCKER DAEMON, USB DEVICES, AND HOST NETWORK ---

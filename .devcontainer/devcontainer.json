@@ -16,7 +16,7 @@
                 "EditorConfig.EditorConfig"
             ],
             "settings": {
-                "python.defaultInterpreterPath": "/opt/miniconda/bin/python",
+                "python.defaultInterpreterPath": "/usr/bin/python3",
                 "terminal.integrated.defaultProfile.linux": "bash"
             }
         }

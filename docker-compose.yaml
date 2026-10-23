@@ -24,7 +24,6 @@ services:
       - AGY_CLI_DISABLE_AUTO_UPDATE=true
     volumes:
       - config:/home/ubuntu/.config
-      - conda:/home/ubuntu/.conda
       - gemini:/home/ubuntu/.gemini
       - Codespaces:/workspace
       - /var/run/docker.sock:/var/run/docker.sock
@@ -78,7 +77,6 @@ services:
 
 volumes:
   config:
-  conda:
   gemini:
   Codespaces:
     external: true
