@@ -36,29 +36,6 @@ services:
       - /lib/modules:/lib/modules:ro
     devices:
       - /dev:/dev
-      # # NVMe devices (actual devices on this system)
-      # - /dev/nvme0n1:/dev/nvme0n1
-      # - /dev/nvme0n1p1:/dev/nvme0n1p1
-      # - /dev/nvme0n1p2:/dev/nvme0n1p2
-      # - /dev/nvme0n1p3:/dev/nvme0n1p3
-      # - /dev/nvme0n1p4:/dev/nvme0n1p4
-      # - /dev/nvme0n1p5:/dev/nvme0n1p5
-      # - /dev/nvme0n1p6:/dev/nvme0n1p6
-      # - /dev/nvme0n1p7:/dev/nvme0n1p7
-      
-      # # Legacy SATA devices (for compatibility)
-      # - /dev/sda:/dev/sda
-      # - /dev/sda1:/dev/sda1
-      # - /dev/sda2:/dev/sda2
-      # - /dev/sda3:/dev/sda3
-      # - /dev/sda4:/dev/sda4
-      # - /dev/sda5:/dev/sda5
-      # - /dev/sdb:/dev/sdb
-      # - /dev/sdc:/dev/sdc
-      # - /dev/sdd:/dev/sdd
-      
-      # # Additional NVMe devices (for multi-drive systems)
-      # - /dev/nvme1n1:/dev/nvme1n1
     device_cgroup_rules:
       - 'c *:* rwm'
       - 'b *:* rwm'
